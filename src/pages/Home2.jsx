@@ -1,5 +1,5 @@
 import { Plus, Target, Calendar, Trophy, Zap, CheckCircle2, Trash2, Filter } from "lucide-react";
-import React, { useState } from 'react'
+import React, { useState,useEffect } from 'react'
 
 export default function Home2() {
 
@@ -10,13 +10,51 @@ export default function Home2() {
       completed: false,
       type: 'diaria'
     }]
-
-    const [tarefa, setTarefa] = useState(tarefasIniciais)
-    const [nivel, setNivel] = useState(1)
-    const [xp, setXp] = useState(0)
+    
     const [novaTarefa, setNovaTarefa] = useState("")
     const [tipoTarefa, setTipoTarefa] = useState('diaria')
     const [filtro, setFiltro] = useState('todos')
+// ===============================
+// 📌 ESTADOS COM LOCALSTORAGE (CLEAN CODE)
+// ===============================
+
+// Tarefas salvas no navegador
+const [tarefa, setTarefa] = useState(() => {
+  const tarefasSalvas = localStorage.getItem('tarefas')
+  return tarefasSalvas ? JSON.parse(tarefasSalvas) : tarefasIniciais
+})
+
+// Nível salvo no navegador
+const [nivel, setNivel] = useState(() => {
+  const nivelSalvo = localStorage.getItem('nivel')
+  return nivelSalvo ? JSON.parse(nivelSalvo) : 1
+})
+
+// XP salvo no navegador
+const [xp, setXp] = useState(() => {
+  const xpSalvo = localStorage.getItem('xp')
+  return xpSalvo ? JSON.parse(xpSalvo) : 0
+})
+
+
+// ===============================
+// 📌 SALVAR AUTOMATICAMENTE
+// ===============================
+
+// Salva tarefas sempre que mudar
+useEffect(() => {
+  localStorage.setItem('tarefas', JSON.stringify(tarefa))
+}, [tarefa])
+
+// Salva nível sempre que mudar
+useEffect(() => {
+  localStorage.setItem('nivel', JSON.stringify(nivel))
+}, [nivel])
+
+// Salva XP sempre que mudar
+useEffect(() => {
+  localStorage.setItem('xp', JSON.stringify(xp))
+}, [xp])
 
     const xpParaSubir = (nivel) => nivel * 200
 
@@ -46,8 +84,8 @@ export default function Home2() {
       if (!novaTarefa.trim()) return
 
       const xpRecompensa =
-        tipoTarefa === 'objetivo' ? 200 :
-        tipoTarefa === 'semanal' ? 100 :
+        tipoTarefa === 'objetivo' ? 500 :
+        tipoTarefa === 'semanal' ? 200 :
         50
 
       setTarefa([
@@ -83,14 +121,17 @@ export default function Home2() {
     }
 
 
-    const completarTarefa = (id) => {
+    const deletarTarefa  = (id) => {
        setTarefa(tarefa.filter(t => t.id !== id))
     }
 
-    const tarefaFiltrada = [ 
+    const tarefaFiltrada = 
       filtro == 'todos' ? tarefa :
-      tarefa.filter((t) => t.type == t)
-    ]
+      tarefa.filter((t) => t.type === filtro)
+
+
+   const xpTotal = tarefa.filter(item => item.completed).reduce((total, t) => total + t.xp, 0)   
+    
   return (
     <div className='min-h-screen bg-zinc-950 text-white p-6 '>
          
@@ -130,17 +171,17 @@ export default function Home2() {
             {/* STATS */}
             <div className='grid grid-cols-3 gap-4 mt-4 text-center'>
               <div>
-                <p>0</p>
+                <p>{tarefa.filter((t) => t.completed).length}</p>
                 <p>Completas</p>
               </div>
 
               <div>
-                <p>4</p>
+                <p>{tarefa.filter((t) => t.completed == false).length}</p>
                 <p>Pendentes</p>
               </div>
 
               <div>
-                <p>0</p>
+                <p>{xpTotal}</p>
                 <p>XP Total</p>
               </div>
             </div>
@@ -185,7 +226,7 @@ export default function Home2() {
           </button>
 
           <button className='bg-zinc-800 flex rounded gap-1 text-white items-center px-3 py-1'
-           onClick={() => setFiltro('diario')}> 
+           onClick={() => setFiltro('diaria')}> 
             <Calendar size={14} />Díaria
           </button>
 
@@ -195,7 +236,7 @@ export default function Home2() {
           </button>
 
           <button className='bg-zinc-800 flex rounded gap-1 text-white items-center px-3 py-1'
-           onClick={() => setFiltro('')}>
+           onClick={() => setFiltro('objetivo')}>
             <Trophy size={14} /> Objetivo
           </button>
         </div>
