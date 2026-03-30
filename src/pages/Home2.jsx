@@ -4,12 +4,12 @@ import React, { useState,useEffect } from 'react'
 export default function Home2() {
 
     const tarefasIniciais = [{
-      id: 1,
-      title: 'treinar',
-      xp: 50,
-     
-      type: 'diaria'
-    }]
+  id: 1,
+  title: 'treinar',
+  xp: 50,
+  type: 'diaria',
+  createdAt: new Date().toISOString()
+}]
     
     const [novaTarefa, setNovaTarefa] = useState("")
     const [tipoTarefa, setTipoTarefa] = useState('diaria')
@@ -66,7 +66,7 @@ useEffect (() =>{
     const xpParaSubir = (nivel) => nivel * 200
 
     const xpNecessario = xpParaSubir(nivel);
-    const progresso = (xp / xpNecessario) * 100;
+    const progresso = xpNecessario ? (xp / xpNecessario) * 100 : 0
     
     const rank =
       nivel < 10 ? "E" :
@@ -86,6 +86,7 @@ useEffect (() =>{
         setXp(novoXp)
       }
     }
+    
 
     const adicionarTarefa = () => {
       if (!novaTarefa.trim()) return
@@ -96,20 +97,21 @@ useEffect (() =>{
         50
 
       setTarefa([
-        ...tarefa,
-        {
-          id: Date.now(),
-          title: novaTarefa,
-          xp: xpRecompensa,
-          type: tipoTarefa
-        }
-      ])
+  ...tarefa,
+  {
+    id: Date.now(),
+    title: novaTarefa,
+    xp: xpRecompensa,
+    type: tipoTarefa,
+    createdAt: new Date().toISOString() // 🔥 ESSENCIAL
+  }
+])
 
       setNovaTarefa("")
     }
 
 
-     const compleetarTarefa = (id) => {
+     const completarTarefa = (id) => {
   const tarefaEncontrada = tarefa.find((t) => t.id === id)
 
   if (!tarefaEncontrada) return
@@ -124,7 +126,7 @@ useEffect (() =>{
   if (jaExecutouHoje) {
     setExecucoes(execucoes.filter((e) => !(e.tarefaId === id && e.date === hoje)))
 
-    setXp( xp - tarefaEncontrada.xp)
+    setXp((prev) => Math.max(0, prev - tarefaEncontrada.xp))
        
     return
   }
@@ -147,7 +149,7 @@ useEffect (() =>{
     }
 
     const tarefaFiltrada = 
-      filtro == 'todos' ? tarefa :
+      filtro === 'todos' ? tarefa :
       tarefa.filter((t) => t.type === filtro)
 
 
@@ -159,8 +161,42 @@ useEffect (() =>{
     objetivo: 500
    }
 
-  
-    
+    const hoje = new Date().toISOString().split("T")[0]
+    const tarefasfeitasHoje = execucoes.filter(
+    (e) => e.date === hoje
+    ).length
+
+   const tarefasDiarias = tarefa.filter(t => t.type === 'diaria')
+
+const pendentesHoje = tarefasDiarias.length - tarefasfeitasHoje
+
+   const agora = new Date()
+
+const fimDoDia = new Date()
+fimDoDia.setHours(23, 59, 59, 999)
+
+const tempoRestante = fimDoDia - agora
+
+
+const horas = Math.floor(tempoRestante / (1000 * 60 * 60))
+const minutos = Math.floor((tempoRestante / (1000 * 60)) % 60)
+
+
+  const verificarSeExpirou = (createdAt) => {
+  if (!createdAt) return false
+
+  const dataCriacao = new Date(createdAt)
+  const agora = new Date()
+
+  const DIAS_LIMITE = 7
+  const MS_POR_DIA = 1000 * 60 * 60 * 24
+
+  const diasPassados = Math.floor(
+    (agora - dataCriacao) / MS_POR_DIA
+  )
+
+  return diasPassados >= DIAS_LIMITE
+}
   return (
     <div className='min-h-screen bg-zinc-950 text-white p-6 '>
          
@@ -200,12 +236,14 @@ useEffect (() =>{
             {/* STATS */}
             <div className='grid grid-cols-3 gap-4 mt-4 text-center'>
               <div>
-                <p>0</p>
+                
+                <p>{tarefasfeitasHoje}</p>
                 <p>Completas</p>
+                
               </div>
 
               <div>
-                <p>0</p>
+                <p>{pendentesHoje}</p>
                 <p>Pendentes</p>
               </div>
 
@@ -277,43 +315,112 @@ useEffect (() =>{
             <Trophy size={14} /> Objetivo
           </button>
         </div>
-          {/* TASKS */}
-           <div className="space-y-3">
-       {tarefaFiltrada.map((item) => {
+      
+       {/* TASKS */}
+     <div className="space-y-3">
+  {tarefaFiltrada.map((item) => {
 
-        const hoje = new Date().toISOString().split("T")[0]
+    const hoje = new Date().toISOString().split("T")[0]
 
-       const jaFeitaHoje = execucoes.some(
-         (e) => e.tarefaId === item.id && e.date === hoje
+    const jaFeitaHoje = execucoes.some(
+      (e) => e.tarefaId === item.id && e.date === hoje
     )
+
+    // 🧠 SEMANAL
+    const tarefaExpirada =
+      item.type === 'semanal' &&
+      verificarSeExpirou(item.createdAt)
+
+    // 🧠 DIAS RESTANTES (semanal)
+    let diasRestantes = null
+
+    if (item.type === 'semanal' && item.createdAt) {
+      const dataCriacao = new Date(item.createdAt)
+      const agora = new Date()
+
+      const diasPassados = Math.floor(
+        (agora - dataCriacao) / (1000 * 60 * 60 * 24)
+      )
+
+      diasRestantes = Math.max(0, 7 - diasPassados)
+    }
 
     return (
       <div
         key={item.id}
-        className="bg-zinc-900 flex justify-between py-3 px-3 items-center rounded"
+        className={`flex justify-between py-3 px-3 items-center rounded ${
+          jaFeitaHoje
+            ? "bg-green-900/30 border border-green-500/30"
+            : tarefaExpirada
+            ? "bg-red-900/30 border border-red-500/30"
+            : "bg-zinc-900"
+        }`}
       >
 
         {/* LADO ESQUERDO */}
         <div className="flex items-center gap-3">
 
-          {/* BOTÃO DE COMPLETAR */}
           <button
-            onClick={() => compleetarTarefa(item.id)}
+            onClick={() => completarTarefa(item.id)}
             className="w-8 h-8 border rounded-full flex items-center justify-center"
           >
-            {jaFeitaHoje && <CheckCircle2 size={18} />}
+            {jaFeitaHoje ? (
+              <CheckCircle2 size={18} className="text-green-400" />
+            ) : (
+              <div className="w-3 h-3 bg-zinc-500 rounded-full" />
+            )}
           </button>
 
-          {/* TEXTO */}
           <div>
-            <p className={jaFeitaHoje ? "line-through" : ""}>
+            <p className={`font-medium ${
+              jaFeitaHoje ? "line-through text-zinc-400" : ""
+            }`}>
               {item.title}
             </p>
+
             <p className="text-xs text-zinc-400">
               {item.type}
             </p>
-          </div>
 
+            {/* 🔵 DIÁRIA */}
+            {item.type === "diaria" && (
+              <>
+                <p className="text-xs text-cyan-400">
+                  Missão diária
+                </p>
+                <p className="text-xs text-zinc-400 mt-1">
+                  ⏳ Termina em: {horas}h {minutos}m
+                </p>
+              </>
+            )}
+
+            {/* 🟡 SEMANAL */}
+            {item.type === "semanal" && (
+              <>
+                <p className="text-xs text-yellow-400">
+                  Missão semanal
+                </p>
+
+                {tarefaExpirada ? (
+                  <p className="text-xs text-red-400">
+                    ❌ Expirada
+                  </p>
+                ) : (
+                  <p className="text-xs text-zinc-400">
+                    ⏳ {diasRestantes} dias restantes
+                  </p>
+                )}
+              </>
+            )}
+
+            {/* 🟣 OBJETIVO */}
+            {item.type === "objetivo" && (
+              <p className="text-xs text-purple-400">
+                Objetivo livre (sem prazo)
+              </p>
+            )}
+
+          </div>
         </div>
 
         {/* LADO DIREITO */}
