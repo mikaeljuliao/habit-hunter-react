@@ -7,7 +7,7 @@ export default function Home2() {
       id: 1,
       title: 'treinar',
       xp: 50,
-      completed: false,
+     
       type: 'diaria'
     }]
     
@@ -36,6 +36,10 @@ const [xp, setXp] = useState(() => {
   return xpSalvo ? JSON.parse(xpSalvo) : 0
 })
 
+const [execucoes, setExecucoes] = useState(() =>{
+  const execucoesSalvas = localStorage.getItem('chaveExecucao')
+  return execucoesSalvas ? JSON.parse(execucoesSalvas) : []
+})
 
 // ===============================
 // 📌 SALVAR AUTOMATICAMENTE
@@ -56,6 +60,9 @@ useEffect(() => {
   localStorage.setItem('xp', JSON.stringify(xp))
 }, [xp])
 
+useEffect (() =>{
+  localStorage.setItem('chaveExecucao', JSON.stringify(execucoes))
+}, [execucoes])
     const xpParaSubir = (nivel) => nivel * 200
 
     const xpNecessario = xpParaSubir(nivel);
@@ -94,7 +101,6 @@ useEffect(() => {
           id: Date.now(),
           title: novaTarefa,
           xp: xpRecompensa,
-          completed: false,
           type: tipoTarefa
         }
       ])
@@ -102,23 +108,38 @@ useEffect(() => {
       setNovaTarefa("")
     }
 
-    const compleetarTarefa = (id) => {
-      // ❌ find errado → não existe sozinho
-      // ✅ correto:
-      const tarefaEncontrada = tarefa.find((t) => t.id === id)
 
-      if (!tarefaEncontrada || tarefaEncontrada.completed) return
+     const compleetarTarefa = (id) => {
+  const tarefaEncontrada = tarefa.find((t) => t.id === id)
 
-      ganharXp(tarefaEncontrada.xp)
+  if (!tarefaEncontrada) return
 
-      setTarefa(
-        tarefa.map(t =>
-          t.id === id
-            ? { ...t, completed: true }
-            : t
-        )
-      )
+  const hoje = new Date().toISOString().split("T")[0]
+
+  // evitar duplicar no mesmo dia (IMPORTANTE)
+  const jaExecutouHoje = execucoes.some(
+    (e) => e.tarefaId === id && e.date === hoje
+  )
+
+  if (jaExecutouHoje) {
+    setExecucoes(execucoes.filter((e) => !(e.tarefaId === id && e.date === hoje)))
+
+    setXp( xp - tarefaEncontrada.xp)
+       
+    return
+  }
+
+  ganharXp(tarefaEncontrada.xp)
+
+  setExecucoes([
+    ...execucoes,
+    {
+      tarefaId: id,
+      date: hoje,
+      xp: tarefaEncontrada.xp
     }
+  ])
+}
 
 
     const deletarTarefa  = (id) => {
@@ -130,7 +151,15 @@ useEffect(() => {
       tarefa.filter((t) => t.type === filtro)
 
 
-   const xpTotal = tarefa.filter(item => item.completed).reduce((total, t) => total + t.xp, 0)   
+   const xpTotal = execucoes.reduce((total, t) => total + t.xp, 0)   
+   
+   const xpPorTIpo = {
+    diaria: 50,
+    semanal: 200,
+    objetivo: 500
+   }
+
+  
     
   return (
     <div className='min-h-screen bg-zinc-950 text-white p-6 '>
@@ -171,12 +200,12 @@ useEffect(() => {
             {/* STATS */}
             <div className='grid grid-cols-3 gap-4 mt-4 text-center'>
               <div>
-                <p>{tarefa.filter((t) => t.completed).length}</p>
+                <p>0</p>
                 <p>Completas</p>
               </div>
 
               <div>
-                <p>{tarefa.filter((t) => t.completed == false).length}</p>
+                <p>0</p>
                 <p>Pendentes</p>
               </div>
 
@@ -203,9 +232,17 @@ useEffect(() => {
             value={tipoTarefa}
             onChange={(e) => setTipoTarefa(e.target.value)}
           >
-            <option value='diaria'>Diaria</option>
-            <option value="semanal">Semanal</option>
-            <option value="objetivo">Objetivo</option>
+           <option value='diaria'>
+           Diária (+{xpPorTIpo.diaria} XP)
+           </option>
+
+           <option value="semanal">
+             Semanal (+{xpPorTIpo.semanal} XP)
+           </option>
+
+           <option value="objetivo">
+             Objetivo (+{xpPorTIpo.objetivo} XP)
+           </option>
           </select>
     
           <button
@@ -240,52 +277,60 @@ useEffect(() => {
             <Trophy size={14} /> Objetivo
           </button>
         </div>
+          {/* TASKS */}
+           <div className="space-y-3">
+       {tarefaFiltrada.map((item) => {
 
-        {/* TASKS */}
-       <div className="space-y-3">
-       {tarefaFiltrada.map((item) => (
-       <div
+        const hoje = new Date().toISOString().split("T")[0]
+
+       const jaFeitaHoje = execucoes.some(
+         (e) => e.tarefaId === item.id && e.date === hoje
+    )
+
+    return (
+      <div
         key={item.id}
         className="bg-zinc-900 flex justify-between py-3 px-3 items-center rounded"
-        >
-      
-      {/* LADO ESQUERDO */}
-      <div className="flex items-center gap-3">
+      >
 
-        {/* BOTÃO DE COMPLETAR */}
-        <button
-           onClick={() => compleetarTarefa(item.id)}
-          className="w-8 h-8 border rounded-full flex items-center justify-center"
-        >
-          {item.completed && <CheckCircle2 size={18} />}
-        </button>
+        {/* LADO ESQUERDO */}
+        <div className="flex items-center gap-3">
 
-        {/* TEXTO */}
-        <div>
-          <p className={item.completed ? "line-through" : ""}>
-            {item.title}
-          </p>
-          <p className="text-xs text-zinc-400">
-            {item.type}
-          </p>
+          {/* BOTÃO DE COMPLETAR */}
+          <button
+            onClick={() => compleetarTarefa(item.id)}
+            className="w-8 h-8 border rounded-full flex items-center justify-center"
+          >
+            {jaFeitaHoje && <CheckCircle2 size={18} />}
+          </button>
+
+          {/* TEXTO */}
+          <div>
+            <p className={jaFeitaHoje ? "line-through" : ""}>
+              {item.title}
+            </p>
+            <p className="text-xs text-zinc-400">
+              {item.type}
+            </p>
+          </div>
+
         </div>
 
-        </div>
-
-      {/* LADO DIREITO */}
+        {/* LADO DIREITO */}
         <div className="flex items-center gap-4">
-        <span className="text-yellow-400 font-bold">
-          +{item.xp}
-        </span>
+          <span className="text-yellow-400 font-bold">
+            +{item.xp}
+          </span>
 
-        <button onClick={() => deletarTarefa(item.id)}>
-          <Trash2 size={18} />
-        </button>
+          <button onClick={() => deletarTarefa(item.id)}>
+            <Trash2 size={18} />
+          </button>
         </div>
 
-           </div>
-           ))}
       </div>
+    )
+  })}
+</div>
 
       </div>   
     </div>
