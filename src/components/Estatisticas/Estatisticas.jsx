@@ -24,14 +24,14 @@ export default function Estatisticas({ tarefas = [], execucoes = [] }) {
   const hoje = new Date().toISOString().split("T")[0];
 
   // Função para verificar se uma tarefa semanal expirou
-  const verificarSeExpirou = (createdAt) => {
+  const verificarSeExpirou = (createdAt, duracaoPersonalizada) => {
     if (!createdAt) return false;
     const dataCriacao = new Date(createdAt);
     const agora = new Date();
     const diasPassados = Math.floor(
       (agora - dataCriacao) / (1000 * 60 * 60 * 24)
     );
-    return diasPassados >= 7;
+    return diasPassados >= (duracaoPersonalizada || 7);
   };
 
   // Cálculo das estatísticas com memoização
@@ -63,7 +63,7 @@ export default function Estatisticas({ tarefas = [], execucoes = [] }) {
     const pendentesSemanais = tarefas.filter(
       (t) =>
         t.type === "semanal" &&
-        !verificarSeExpirou(t.createdAt) &&
+        !verificarSeExpirou(t.createdAt, t.duracaoDias) &&
         !execucoes.some((e) => e.tarefaId === t.id)
     ).length;
 

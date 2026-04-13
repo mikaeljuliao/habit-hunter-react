@@ -1,0 +1,6 @@
+feat: duração dinâmica para missões semanais (3-7 dias)
+
+- Implementação de ModalSemanal para escolha de duração personalizada.
+- Atualização da lógica de interceptação de tarefas semanais na Home.jsx.
+- Ajuste dos cálculos de cronômetro e expiração para suportar durações de 3 a 7 dias.
+- Sincronização da lógica de validade no componente de Estatísticas.

@@ -5,6 +5,7 @@ import { FormularioTarefa } from "../components/FormularioTarefa/FormularioTaref
 import Filtros from "../components/Filtros/Filtros";
 import { ListaTarefas } from "../components/ListaTarefas/ListaTarefas";
 import ModalConfirmacao from "../components/ModalConfirmacao/ModalConfirmacao";
+import ModalSemanal from "../components/ModalSemanal/ModalSemanal";
 
 // ===============================
 // 📌 CONSTANTES
@@ -33,8 +34,10 @@ export default function Home() {
   const [tipoTarefa, setTipoTarefa] = useState("diaria");
   const [filtro, setFiltro] = useState("todos");
   const [mostrarModal, setMostrarModal] = useState(false);
+  const [mostrarModalSemanal, setMostrarModalSemanal] = useState(false);
   const [tarefaSelecionadaId, setTarefaSelecionadaId] = useState(null);
   const [tipoModal, setTipoModal] = useState(null);
+  const [tarefaPendente, setTarefaPendente] = useState(null);
 
   // ===============================
   // 📌 ESTADOS COM LOCALSTORAGE
@@ -165,8 +168,13 @@ export default function Home() {
   const adicionarTarefa = () => {
     if (!novaTarefa.trim()) return;
 
-    const xpRecompensa =
-      tipoTarefa === "objetivo" ? 500 : tipoTarefa === "semanal" ? 200 : 50;
+    if (tipoTarefa === "semanal") {
+      setTarefaPendente({ title: novaTarefa, type: tipoTarefa });
+      setMostrarModalSemanal(true);
+      return;
+    }
+
+    const xpRecompensa = tipoTarefa === "objetivo" ? 500 : 50;
 
     setTarefa([
       ...tarefa,
@@ -180,6 +188,26 @@ export default function Home() {
     ]);
 
     setNovaTarefa("");
+  };
+
+  const finalizarAdicaoSemanal = (duracao) => {
+    const xpRecompensa = xpPorTIpo.semanal;
+
+    setTarefa([
+      ...tarefa,
+      {
+        id: Date.now(),
+        title: tarefaPendente.title,
+        xp: xpRecompensa,
+        type: "semanal",
+        duracaoDias: duracao,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    setNovaTarefa("");
+    setTarefaPendente(null);
+    setMostrarModalSemanal(false);
   };
 
   const completarTarefa = (id) => {
@@ -215,12 +243,12 @@ export default function Home() {
     setTarefa(tarefa.filter((t) => t.id !== id));
   };
 
-  const verificarSeExpirou = (createdAt) => {
+  const verificarSeExpirou = (createdAt, duracaoPersonalizada) => {
     if (!createdAt) return false;
 
     const dataCriacao = new Date(createdAt);
     const agora = new Date();
-    const DIAS_LIMITE = 7;
+    const DIAS_LIMITE = duracaoPersonalizada || 7;
     const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
     const diasPassados = Math.floor((agora - dataCriacao) / MS_POR_DIA);
@@ -292,7 +320,7 @@ export default function Home() {
   const pendentesSemanais = tarefa.filter(
     (t) =>
       t.type === "semanal" &&
-      !verificarSeExpirou(t.createdAt) &&
+      !verificarSeExpirou(t.createdAt, t.duracaoDias) &&
       !execucoes.some((e) => e.tarefaId === t.id)
   ).length;
 
@@ -356,6 +384,13 @@ export default function Home() {
           tipo={tipoModal}
           onCancelar={fecharModal}
           onConfirmar={confirmarAcaoModal}
+        />
+
+        <ModalSemanal
+          aberto={mostrarModalSemanal}
+          tarefaTitulo={tarefaPendente?.title}
+          onCancelar={() => setMostrarModalSemanal(false)}
+          onConfirmar={finalizarAdicaoSemanal}
         />
       </div>
     </div>

@@ -22,7 +22,7 @@ export const ListaTarefas = ({ tarefas, execucoes, falhasDiarias, tarefasOcultas
           );
 
         const tarefaExpirada =
-          item.type === "semanal" && verificarSeExpirou(item.createdAt);
+          item.type === "semanal" && verificarSeExpirou(item.createdAt, item.duracaoDias);
 
         let diasRestantes = null;
 
@@ -32,7 +32,7 @@ export const ListaTarefas = ({ tarefas, execucoes, falhasDiarias, tarefasOcultas
           const diasPassados = Math.floor(
             (agora - dataCriacao) / (1000 * 60 * 60 * 24)
           );
-          diasRestantes = Math.max(0, 7 - diasPassados);
+          diasRestantes = Math.max(0, (item.duracaoDias || 7) - diasPassados);
         }
 
         const bloqueada = tarefaExpirada || perdeuOntem;
