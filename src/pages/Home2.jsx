@@ -1,6 +1,6 @@
 import { Plus, Target, Calendar, Trophy, Zap, CheckCircle2, Trash2, Filter } from "lucide-react";
 import React, { useState, useEffect } from 'react'
-import { Archive } from "lucide-react";
+import { Archive, History } from "lucide-react";
 
 export default function Home2() {
 
@@ -335,7 +335,79 @@ const minutos = Math.floor(
   (tempoRestante / (1000 * 60)) % 60
 )
 
+// ===============================
+// 📌 RENDERIZAÇÃO DO HISTÓRICO
+// ===============================
+const renderHistorico = () => {
+  const execucoesPorData = execucoes.reduce((acc, execucao) => {
+    if (!acc[execucao.date]) {
+      acc[execucao.date] = [];
+    }
+    acc[execucao.date].push(execucao);
+    return acc;
+  }, {});
+
+  const datasOrdenadas = Object.keys(execucoesPorData).sort((a, b) => new Date(b) - new Date(a));
+
+  if (datasOrdenadas.length === 0) {
+    return (
+      <div className="text-center text-zinc-500 py-10 border border-dashed border-zinc-800 rounded-xl">
+        Nenhum histórico de missões completadas ainda.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+        <History className="text-cyan-400" /> Histórico de Conquistas
+      </h2>
+      {datasOrdenadas.map(data => {
+        const partes = data.split("-");
+        const dataFormatada = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : data;
+        const eHoje = data === hoje;
+        const execucoesDoDia = execucoesPorData[data];
+        const xpDiario = execucoesDoDia.reduce((total, e) => total + e.xp, 0);
+
+        return (
+          <div key={data} className="bg-zinc-900/40 rounded-xl border border-zinc-800 p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-bold text-cyan-400 flex items-center gap-2">
+                <Calendar size={18} /> {eHoje ? "Hoje" : dataFormatada}
+              </h3>
+              <span className="text-sm font-bold text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded">
+                +{xpDiario} XP
+              </span>
+            </div>
+            <div className="space-y-2">
+              {execucoesDoDia.map((exec, idx) => {
+                const t = tarefa.find(t => t.id === exec.tarefaId);
+                const title = t ? t.title : "Missão Removida";
+                const type = t ? t.type : "desconhecido";
+
+                return (
+                  <div key={idx} className="flex justify-between py-2 px-3 items-center rounded-lg bg-zinc-900 border border-zinc-800/60">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 size={16} className="text-green-400" />
+                      <div>
+                        <p className="font-medium text-sm text-zinc-200">{title}</p>
+                        <p className="text-xs text-zinc-500 capitalize">{type}</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-yellow-400">+{exec.xp} XP</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
  return (
+
   <div className="min-h-screen bg-zinc-950 text-white p-6">
     <div className="max-w-4xl mx-auto space-y-6">
       
@@ -483,15 +555,30 @@ const minutos = Math.floor(
        
       </div>
 
-       {/* Novo botão */}
-       <div>
-      <button
-      className="bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1"
-      onClick={() => setFiltro("arquivadas")}
-       >
-      <Archive size={14} /> Lixeira
-     </button>
-     </div>
+       {/* Novas abas de sistema: Lixeira e Histórico */}
+       <div className="flex gap-3">
+         <button
+           className={`transition flex rounded gap-1 items-center px-3 py-1 ${
+             filtro === "arquivadas" 
+               ? "bg-cyan-500 text-black font-semibold" 
+               : "bg-zinc-800 text-white hover:bg-zinc-700"
+           }`}
+           onClick={() => setFiltro("arquivadas")}
+         >
+           <Archive size={14} /> Lixeira
+         </button>
+
+         <button
+           className={`transition flex rounded gap-1 items-center px-3 py-1 ${
+             filtro === "historico" 
+               ? "bg-cyan-500 text-black font-semibold" 
+               : "bg-zinc-800 text-cyan-400 hover:bg-zinc-700"
+           }`}
+           onClick={() => setFiltro("historico")}
+         >
+           <History size={14} /> Histórico
+         </button>
+       </div>
 
   
        {/* Modal de confirmação */}
@@ -551,10 +638,13 @@ const minutos = Math.floor(
   </div>
 )}
 
-      {/* TASKS */}
+      {/* TASKS OU HISTORICO */}
       <div className="space-y-3">
-        {tarefaFiltrada.map((item) => {
-          const hoje = new Date().toISOString().split("T")[0];
+        {filtro === "historico" ? (
+          renderHistorico()
+        ) : (
+          tarefaFiltrada.map((item) => {
+            const hoje = new Date().toISOString().split("T")[0];
 
           const ontem = new Date();
           ontem.setDate(ontem.getDate() - 1);
@@ -716,7 +806,8 @@ const minutos = Math.floor(
     </div>
   </div>
 );
-        })}
+          })
+        )}
       </div>
     </div>
   </div>
