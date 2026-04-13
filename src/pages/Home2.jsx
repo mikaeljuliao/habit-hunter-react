@@ -477,13 +477,19 @@ const renderHistorico = () => {
           const isHoje     = data === hoje;
           const isExpanded = data === dataExpandida;
 
-          // Stats do dia (sempre usando todos os logs do dia, sem filtro global)
+          // ── STATS DO DIA: usam os arrays de estado real ──
+          // Concluídas e XP = execucoes reais do dia (já desconta DESMARCADA automaticamente)
+          const execucoesDia  = execucoes.filter(e => e.date === data);
+          const xpDia         = execucoesDia.reduce((s, e) => s + e.xp, 0);
+          const concluidasDia = execucoesDia.length;
+          // Falhas = falhasDiarias reais do dia
+          const falhasDia     = falhasDiarias.filter(f => f.date === data).length;
+          // Removidas e Arquivadas = logs (são permanentes ou já corrigidos via restaurar)
           const logsCompletoDia = logsDoDia.filter(l => l.action !== 'CRIACAO');
-          const xpDia           = logsCompletoDia.filter(l => l.action === "CONCLUSAO").reduce((s, l) => s + l.xp, 0);
-          const concluidasDia   = logsCompletoDia.filter(l => l.action === "CONCLUSAO").length;
-          const falhasDia       = logsCompletoDia.filter(l => l.action === "FALHA").length;
           const removidosDia    = logsCompletoDia.filter(l => l.action === "REMOCAO").length;
           const arquivadosDia   = logsCompletoDia.filter(l => l.action === "ARQUIVAMENTO").length;
+          // Total do dia = todos os tipos distintos de tarefa que aparecem no estat
+          const totalDia        = concluidasDia + falhasDia + removidosDia + arquivadosDia;
 
           return (
             <div key={data} className={`rounded-xl border overflow-hidden ${
@@ -532,11 +538,15 @@ const renderHistorico = () => {
               {isExpanded && (
                 <div className="border-t border-zinc-800 bg-zinc-950/50 px-5 py-4 space-y-4">
 
-                  {/* ── RESUMO RÁPIDO DO DIA ── */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {/* ── RESUMO REAL DO DIA ── */}
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center col-span-1">
+                      <p className="text-lg font-black text-zinc-300">{totalDia}</p>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Total</p>
+                    </div>
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
                       <p className="text-lg font-black text-yellow-400">{xpDia > 0 ? `+${xpDia}` : 0}</p>
-                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">XP no dia</p>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">XP ganho</p>
                     </div>
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
                       <p className="text-lg font-black text-green-400">{concluidasDia}</p>
@@ -547,8 +557,8 @@ const renderHistorico = () => {
                       <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Falhas</p>
                     </div>
                     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
-                      <p className="text-lg font-black text-zinc-400">{removidosDia + arquivadosDia}</p>
-                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Removidas/Arq.</p>
+                      <p className="text-lg font-black text-zinc-500">{removidosDia + arquivadosDia}</p>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Rem./Arq.</p>
                     </div>
                   </div>
 
