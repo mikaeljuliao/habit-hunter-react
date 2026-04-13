@@ -1,6 +1,7 @@
 import { Plus, Target, Calendar, Trophy, Zap, CheckCircle2, Trash2, Filter } from "lucide-react";
 import React, { useState, useEffect } from 'react'
 import { Archive, History } from "lucide-react";
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Home2() {
 
@@ -18,6 +19,7 @@ const tarefasIniciais = [{
 const [novaTarefa, setNovaTarefa] = useState("")
 const [tipoTarefa, setTipoTarefa] = useState('diaria')
 const [filtro, setFiltro] = useState('todos')
+const [filtroHistorico, setFiltroHistorico] = useState('todos')
 const [mostrarModal, setMostrarModal] = useState(false)
 const [tarefaSelecionadaId, setTarefaSelecionadaId] = useState(null);
 const [tipoModal, setTipoModal] = useState(null)
@@ -336,72 +338,201 @@ const minutos = Math.floor(
 )
 
 // ===============================
-// 📌 RENDERIZAÇÃO DO HISTÓRICO
+// 📌 MULTI-UI RENDER: HISTÓRICO AVANÇADO
 // ===============================
 const renderHistorico = () => {
-  const execucoesPorData = execucoes.reduce((acc, execucao) => {
-    if (!acc[execucao.date]) {
-      acc[execucao.date] = [];
-    }
-    acc[execucao.date].push(execucao);
-    return acc;
-  }, {});
+  // 1. Coleta e Organiza Datas (Execuções + Falhas)
+  const todasDatasSet = new Set();
+  execucoes.forEach(e => todasDatasSet.add(e.date));
+  falhasDiarias.forEach(f => todasDatasSet.add(f.date));
+  
+  const datasOrdenadas = Array.from(todasDatasSet).sort((a, b) => new Date(b) - new Date(a));
 
-  const datasOrdenadas = Object.keys(execucoesPorData).sort((a, b) => new Date(b) - new Date(a));
+  // 2. Prepara Dados para o Gráfico
+  const chartData = Array.from(todasDatasSet)
+    .sort((a, b) => new Date(a) - new Date(b))
+    .map(date => {
+      const parte = date.split('-');
+      const nomeCurto = `${parte[2]}/${parte[1]}`;
+      const xpNoDia = execucoes.filter(e => e.date === date).reduce((sum, e) => sum + e.xp, 0);
+      const falhasNoDia = falhasDiarias.filter(f => f.date === date).length;
+      return {
+        date,
+        name: nomeCurto,
+        XP: xpNoDia,
+        Falhas: falhasNoDia
+      };
+    });
 
   if (datasOrdenadas.length === 0) {
     return (
       <div className="text-center text-zinc-500 py-10 border border-dashed border-zinc-800 rounded-xl">
-        Nenhum histórico de missões completadas ainda.
+        Nenhum evento registrado ainda. Relatório vazio.
       </div>
     );
   }
 
+  // Estatísticas Rápidas
+  const xpMaximoDia = Math.max(...chartData.map(d => d.XP), 0);
+  const totalFalhas = falhasDiarias.length;
+  
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-        <History className="text-cyan-400" /> Histórico de Conquistas
-      </h2>
-      {datasOrdenadas.map(data => {
-        const partes = data.split("-");
-        const dataFormatada = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : data;
-        const eHoje = data === hoje;
-        const execucoesDoDia = execucoesPorData[data];
-        const xpDiario = execucoesDoDia.reduce((total, e) => total + e.xp, 0);
+    <div className="space-y-8 animate-in fade-in duration-500">
+      
+      {/* HEADER E GRÁFICOS DO HISTÓRICO */}
+      <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 rounded-2xl border border-zinc-800 p-4 sm:p-6 shadow-xl relative overflow-hidden">
+        <div className="hidden sm:block absolute -top-10 -right-10 p-8 opacity-[0.03]">
+           <History size={250} />
+        </div>
+        <h2 className="text-2xl font-black text-white mb-2 flex items-center gap-3 relative z-10">
+          <History className="text-cyan-400" size={28} /> Painel de Analytics
+        </h2>
+        <p className="text-zinc-400 text-sm mb-6 relative z-10 max-w-lg">
+          Acompanhe seu rendimento constante, evolução de experiência diária e taxas de sucesso em todas as missões cadastradas.
+        </p>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 relative z-10">
+           <div className="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
+             <p className="text-zinc-500 text-xs font-bold uppercase mb-1">XP Recorde/Dia</p>
+             <p className="text-2xl font-black text-yellow-400">{xpMaximoDia}</p>
+           </div>
+           <div className="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
+             <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Total Completas</p>
+             <p className="text-2xl font-black text-green-400">{execucoes.length}</p>
+           </div>
+           <div className="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
+             <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Total de Falhas</p>
+             <p className="text-2xl font-black text-red-500">{totalFalhas}</p>
+           </div>
+           <div className="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
+             <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Dias Ativos</p>
+             <p className="text-2xl font-black text-cyan-400">{chartData.length}</p>
+           </div>
+        </div>
 
-        return (
-          <div key={data} className="bg-zinc-900/40 rounded-xl border border-zinc-800 p-4">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-bold text-cyan-400 flex items-center gap-2">
-                <Calendar size={18} /> {eHoje ? "Hoje" : dataFormatada}
-              </h3>
-              <span className="text-sm font-bold text-yellow-400 bg-yellow-400/10 px-2 py-1 rounded">
-                +{xpDiario} XP
-              </span>
-            </div>
-            <div className="space-y-2">
-              {execucoesDoDia.map((exec, idx) => {
-                const t = tarefa.find(t => t.id === exec.tarefaId);
-                const title = t ? t.title : "Missão Removida";
-                const type = t ? t.type : "desconhecido";
+        {/* COMPONENTE INTERATIVO RECHARTS */}
+        <div className="h-64 w-full relative z-10">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="colorXp" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4}/>
+                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="name" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
+              <Tooltip 
+                 contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }}
+                 itemStyle={{ fontWeight: 'bold' }}
+              />
+              <Area type="monotone" dataKey="XP" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorXp)" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
-                return (
-                  <div key={idx} className="flex justify-between py-2 px-3 items-center rounded-lg bg-zinc-900 border border-zinc-800/60">
-                    <div className="flex items-center gap-3">
-                      <CheckCircle2 size={16} className="text-green-400" />
-                      <div>
-                        <p className="font-medium text-sm text-zinc-200">{title}</p>
-                        <p className="text-xs text-zinc-500 capitalize">{type}</p>
+      {/* FILTROS INTERNOS DA TIMELINE */}
+      <div className="flex bg-zinc-900 rounded-xl border border-zinc-800 p-2 gap-2 mt-4 transition">
+        {['todos', 'completas', 'falhas'].map(tipo => (
+          <button
+            key={tipo}
+            onClick={() => setFiltroHistorico(tipo)}
+            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all capitalize ${
+              filtroHistorico === tipo 
+                ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.3)]' 
+                : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+            }`}
+          >
+            {tipo === 'todos' ? 'Eventos Gerais' : tipo}
+          </button>
+        ))}
+      </div>
+
+      {/* TIMELINE DETALHADA E SEPARADA */}
+      <div className="space-y-8 mt-6">
+        {datasOrdenadas.map(data => {
+          const partes = data.split("-");
+          const dataFormatada = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : data;
+          const eHoje = data === hoje;
+          
+          let execucoesDoDia = execucoes.filter(e => e.date === data);
+          let falhasDoDia = falhasDiarias.filter(f => f.date === data);
+
+          if (filtroHistorico === 'completas') falhasDoDia = [];
+          if (filtroHistorico === 'falhas') execucoesDoDia = [];
+
+          if (execucoesDoDia.length === 0 && falhasDoDia.length === 0) return null;
+
+          const xpDiario = execucoesDoDia.reduce((total, e) => total + e.xp, 0);
+
+          return (
+            <div key={data} className="relative pl-8 border-l-[3px] border-zinc-800">
+              {/* Ponto brilhante da Timeline */}
+              <div className="absolute w-4 h-4 bg-zinc-900 border-2 border-cyan-500 rounded-full -left-[10px] top-1 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+              
+              {/* Header do Dia */}
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  {eHoje ? "Eventos de Hoje" : `Data de Atividade: ${dataFormatada}`}
+                </h3>
+                {xpDiario > 0 && (
+                  <span className="text-xs sm:text-sm font-black text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 rounded-full shadow-inner">
+                    +{xpDiario} XP PRODUZIDO
+                  </span>
+                )}
+              </div>
+
+              {/* Box de transações */}
+              <div className="grid gap-3">
+                {/* LISTAGEM DE SUCESSOS */}
+                {execucoesDoDia.map((exec, idx) => {
+                  const t = tarefa.find(t => t.id === exec.tarefaId);
+                  const title = t ? t.title : "(Missão Criptografada ou Deletada)";
+                  const type = t ? t.type : "desconhecido";
+                  
+                  return (
+                    <div key={`exec-${idx}`} className="flex justify-between py-3 px-4 items-center rounded-xl bg-gradient-to-r from-zinc-900 to-zinc-950 border border-zinc-800 hover:border-zinc-700 transition cursor-default">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20 shadow-inner">
+                           <CheckCircle2 size={24} className="text-green-500 shadow-green-500" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-zinc-100 text-base sm:text-lg">{title}</p>
+                          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">{type}</p>
+                        </div>
                       </div>
+                      <span className="text-base sm:text-lg font-black text-yellow-400">+{exec.xp} XP</span>
                     </div>
-                    <span className="text-sm font-bold text-yellow-400">+{exec.xp} XP</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+
+                {/* LISTAGEM DE FALHAS */}
+                {falhasDoDia.map((falha, idx) => {
+                  const t = tarefa.find(t => t.id === falha.tarefaId);
+                  const title = t ? t.title : "(Missão Deletada antes do Fim)";
+                  const type = t ? t.type : "falha sistemática";
+
+                  return (
+                    <div key={`falha-${idx}`} className="flex justify-between py-3 px-4 items-center rounded-xl bg-red-950/20 border border-red-900/30">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center border border-red-900/40">
+                           <Trash2 size={20} className="text-red-500 opacity-80" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-zinc-400 text-base sm:text-lg line-through">{title}</p>
+                          <p className="text-xs font-semibold text-red-500/60 uppercase tracking-widest">Penalidade — {type}</p>
+                        </div>
+                      </div>
+                      <span className="text-xs sm:text-sm font-bold text-red-500/40 italic">Omissão registrada</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 };
