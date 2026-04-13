@@ -1,4 +1,4 @@
-import { Plus, Target, Calendar, Trophy, Zap, CheckCircle2, Trash2, Filter, ChevronDown, ChevronRight, XCircle, Archive, History } from "lucide-react";
+import { Plus, Target, Calendar, Trophy, Zap, CheckCircle2, Trash2, ChevronDown, ChevronRight, XCircle, Archive, History } from "lucide-react";
 import React, { useState, useEffect } from 'react'
 
 export default function Home2() {
@@ -17,12 +17,14 @@ const tarefasIniciais = [{
 const [novaTarefa, setNovaTarefa] = useState("")
 const [tipoTarefa, setTipoTarefa] = useState('diaria')
 const [filtro, setFiltro] = useState('todos')
-const [filtroHistorico, setFiltroHistorico] = useState('todos')
 const [mostrarModal, setMostrarModal] = useState(false)
 const [tarefaSelecionadaId, setTarefaSelecionadaId] = useState(null);
 const [tipoModal, setTipoModal] = useState(null)
+
+// Estados do Histórico
 const [dataExpandida, setDataExpandida] = useState(null);
 const [filtroLogs, setFiltroLogs] = useState('todos');
+
 // ===============================
 // 📌 ESTADOS COM LOCALSTORAGE
 // ===============================
@@ -73,31 +75,32 @@ const [tarefasOcultas, setTarefasOcultas] = useState(() => {
 const [logEventos, setLogEventos] = useState(() => {
   const salvas = localStorage.getItem('logEventos')
   if (salvas) return JSON.parse(salvas);
-  
-  const data = new Date();
-  data.setDate(data.getDate() - 1);
-  const ontem = data.toISOString().split("T")[0];
-  data.setDate(data.getDate() - 1);
-  const anteontem = data.toISOString().split("T")[0];
-  data.setDate(data.getDate() - 1);
-  const tresDiasAtras = data.toISOString().split("T")[0];
-  
+
+  // Mock inicial para visualização nos primeiros 3 dias
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  const ontem = d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - 1);
+  const anteontem = d.toISOString().split("T")[0];
+  d.setDate(d.getDate() - 1);
+  const tresDias = d.toISOString().split("T")[0];
+
   return [
-     { id: 101, action: "CRIACAO", date: tresDiasAtras, title: "Pagar Contas", type: "diaria", xp: 0 },
-     { id: 102, action: "CONCLUSAO", date: tresDiasAtras, title: "Ler 20 páginas", type: "diaria", xp: 50 },
-     { id: 103, action: "CRIACAO", date: anteontem, title: "Revisar Projeto", type: "semanal", xp: 0 },
-     { id: 104, action: "ARQUIVAMENTO", date: anteontem, title: "Projeto Parado", type: "objetivo", xp: 0 },
-     { id: 105, action: "FALHA", date: ontem, title: "Ir na Academia", type: "diaria", xp: 0 },
-     { id: 106, action: "REMOCAO", date: ontem, title: "Tarefa Errada", type: "diaria", xp: 0 },
+    { id: 101, action: "CRIACAO",      date: tresDias, title: "Pagar Contas",   type: "diaria",   xp: 0 },
+    { id: 102, action: "CONCLUSAO",    date: tresDias, title: "Ler 20 páginas", type: "diaria",   xp: 50 },
+    { id: 103, action: "CRIACAO",      date: anteontem, title: "Revisar Projeto", type: "semanal", xp: 0 },
+    { id: 104, action: "ARQUIVAMENTO", date: anteontem, title: "Projeto Parado",  type: "objetivo",xp: 0 },
+    { id: 105, action: "FALHA",        date: ontem,    title: "Ir na Academia", type: "diaria",   xp: 0 },
+    { id: 106, action: "REMOCAO",      date: ontem,    title: "Tarefa Errada",  type: "diaria",   xp: 0 },
   ];
 });
 
 const registrarEvento = (action, title, type, xpGained = 0) => {
-   const hojeLocal = new Date().toISOString().split("T")[0];
-   setLogEventos(prev => [
-      { id: Date.now() + Math.random(), action, date: hojeLocal, title, type, xp: xpGained },
-      ...prev
-   ]);
+  const hojeLocal = new Date().toISOString().split("T")[0];
+  setLogEventos(prev => [
+    { id: Date.now() + Math.random(), action, date: hojeLocal, title, type, xp: xpGained },
+    ...prev
+  ]);
 };
 
 // ===============================
@@ -149,23 +152,25 @@ useEffect(() => {
 
   const falhas = tarefa
     .filter(t => t.type === 'diaria')
-    .filter(t => !execucoes.some(
-      e => e.tarefaId === t.id && e.date === dataOntem
-    ))
-    .map(t => ({
-      tarefaId: t.id,
-      date: dataOntem
-    }))
+    .filter(t => !execucoes.some(e => e.tarefaId === t.id && e.date === dataOntem))
+    .map(t => ({ tarefaId: t.id, date: dataOntem }))
 
-  const novasFalhas = falhas.filter(f => !falhasDiarias.some(p => p.tarefaId === f.tarefaId && p.date === f.date));
+  const novasFalhas = falhas.filter(f =>
+    !falhasDiarias.some(p => p.tarefaId === f.tarefaId && p.date === f.date)
+  );
 
   if (novasFalhas.length > 0) {
     setFalhasDiarias(prev => [...prev, ...novasFalhas])
-    
-    // Injeção nos logs globais:
     const novosLogs = novasFalhas.map(f => {
-       const t = tarefa.find(x => x.id === f.tarefaId);
-       return { id: Date.now() + Math.random(), action: "FALHA", date: dataOntem, title: t ? t.title : "Desconhecido", type: t ? t.type : "diaria", xp: 0 };
+      const t = tarefa.find(x => x.id === f.tarefaId);
+      return {
+        id: Date.now() + Math.random(),
+        action: "FALHA",
+        date: dataOntem,
+        title: t ? t.title : "Desconhecido",
+        type: t ? t.type : "diaria",
+        xp: 0
+      };
     });
     setLogEventos(prev => [...novosLogs, ...prev]);
   }
@@ -217,9 +222,8 @@ const adicionarTarefa = () => {
       createdAt: new Date().toISOString()
     }
   ])
-  
-  registrarEvento("CRIACAO", novaTarefa, tipoTarefa, 0);
 
+  registrarEvento("CRIACAO", novaTarefa, tipoTarefa, 0);
   setNovaTarefa("")
 }
 
@@ -234,11 +238,7 @@ const completarTarefa = (id) => {
   )
 
   if (jaExecutouHoje) {
-    setExecucoes(
-      execucoes.filter(
-        (e) => !(e.tarefaId === id && e.date === hoje)
-      )
-    )
+    setExecucoes(execucoes.filter((e) => !(e.tarefaId === id && e.date === hoje)))
     setXp((prev) => Math.max(0, prev - tarefaEncontrada.xp))
     registrarEvento("DESMARCADA", tarefaEncontrada.title, tarefaEncontrada.type, -tarefaEncontrada.xp);
     return
@@ -248,11 +248,7 @@ const completarTarefa = (id) => {
 
   setExecucoes([
     ...execucoes,
-    {
-      tarefaId: id,
-      date: hoje,
-      xp: tarefaEncontrada.xp
-    }
+    { tarefaId: id, date: hoje, xp: tarefaEncontrada.xp }
   ])
   registrarEvento("CONCLUSAO", tarefaEncontrada.title, tarefaEncontrada.type, tarefaEncontrada.xp);
 }
@@ -265,57 +261,47 @@ const deletarTarefa = (id) => {
 
 const verificarSeExpirou = (createdAt) => {
   if (!createdAt) return false
-
   const dataCriacao = new Date(createdAt)
   const agora = new Date()
-
   const DIAS_LIMITE = 7
   const MS_POR_DIA = 1000 * 60 * 60 * 24
-
-  const diasPassados = Math.floor(
-    (agora - dataCriacao) / MS_POR_DIA
-  )
-
+  const diasPassados = Math.floor((agora - dataCriacao) / MS_POR_DIA)
   return diasPassados >= DIAS_LIMITE
 }
 
- const limparTarefa = (id) => {
+const limparTarefa = (id) => {
   const t = tarefa.find(x => x.id === id);
   if (t) registrarEvento("ARQUIVAMENTO", t.title, t.type, 0);
-  
   setTarefasOcultas((tarefasAnteriores) =>
     tarefasAnteriores.includes(id) ? tarefasAnteriores : [...tarefasAnteriores, id]
   );
 };
 
+const restaurarTarefa = (id) => {
+  const t = tarefa.find(x => x.id === id);
+  if (t) registrarEvento("RESTAURADA", t.title, t.type, 0);
+  setTarefasOcultas((prev) => prev.filter((tarefaId) => tarefaId !== id));
+};
 
-const solicitarAcaoModal = (id, tipoDoModal) =>{
+const solicitarAcaoModal = (id, tipoDoModal) => {
   setTarefaSelecionadaId(id)
   setTipoModal(tipoDoModal)
   setMostrarModal(true)
 }
 
 const fecharModal = () => {
-     setTarefaSelecionadaId(null)
-     setMostrarModal(false)
-     setTipoModal(null)
+  setTarefaSelecionadaId(null)
+  setMostrarModal(false)
+  setTipoModal(null)
 }
 
- const confirmarAcaoModal = () => {
-  if (tarefaSelecionadaId == null) return; // cobre null e undefined
-  
-    if(tipoModal === 'remover'){
-      deletarTarefa(tarefaSelecionadaId)
-    } else if( tipoModal === 'limpar'){
-      limparTarefa(tarefaSelecionadaId)
-    } else if( tipoModal === 'restaurar') {
-      restaurarTarefa(tarefaSelecionadaId)
-    }
+const confirmarAcaoModal = () => {
+  if (tarefaSelecionadaId == null) return;
+  if (tipoModal === 'remover')        deletarTarefa(tarefaSelecionadaId)
+  else if (tipoModal === 'limpar')    limparTarefa(tarefaSelecionadaId)
+  else if (tipoModal === 'restaurar') restaurarTarefa(tarefaSelecionadaId)
   fecharModal()
 };
-
- 
-
 
 // ===============================
 // 📌 FILTROS E MÉTRICAS
@@ -325,52 +311,26 @@ const tarefaFiltrada =
     ? tarefa.filter((t) => tarefasOcultas.includes(t.id))
     : filtro === 'todos'
       ? tarefa.filter((t) => !tarefasOcultas.includes(t.id))
-      : tarefa.filter(
-          (t) =>
-            t.type === filtro && !tarefasOcultas.includes(t.id)
-        );
-  
-
-      const restaurarTarefa = (id) => {
-  const t = tarefa.find(x => x.id === id);
-  if (t) registrarEvento("RESTAURADA", t.title, t.type, 0);
-  
-  setTarefasOcultas((prev) =>
-    prev.filter((tarefaId) => tarefaId !== id)
-  );
-};
-
+      : tarefa.filter((t) => t.type === filtro && !tarefasOcultas.includes(t.id));
 
 const xpTotal = execucoes.reduce((total, t) => total + t.xp, 0)
 
-const xpPorTIpo = {
-  diaria: 50,
-  semanal: 200,
-  objetivo: 500
-}
+const xpPorTIpo = { diaria: 50, semanal: 200, objetivo: 500 }
 
 const hoje = new Date().toISOString().split("T")[0]
 
-const tarefasfeitasHoje = execucoes.filter(
-  (e) => e.date === hoje
-).length
+const tarefasfeitasHoje = execucoes.filter((e) => e.date === hoje).length
 
 const pendentesDiarias = tarefa.filter((t) =>
-  t.type === 'diaria' &&
-  !execucoes.some(
-    (e) => e.tarefaId === t.id && e.date === hoje
-  )
+  t.type === 'diaria' && !execucoes.some((e) => e.tarefaId === t.id && e.date === hoje)
 ).length
 
 const pendentesSemanais = tarefa.filter((t) =>
-  t.type === 'semanal' &&
-  !verificarSeExpirou(t.createdAt) &&
-  !execucoes.some((e) => e.tarefaId === t.id)
+  t.type === 'semanal' && !verificarSeExpirou(t.createdAt) && !execucoes.some((e) => e.tarefaId === t.id)
 ).length
 
 const pendentesObjetivos = tarefa.filter((t) =>
-  t.type === 'objetivo' &&
-  !execucoes.some((e) => e.tarefaId === t.id)
+  t.type === 'objetivo' && !execucoes.some((e) => e.tarefaId === t.id)
 ).length
 
 // ===============================
@@ -379,151 +339,241 @@ const pendentesObjetivos = tarefa.filter((t) =>
 const agora = new Date()
 const fimDoDia = new Date()
 fimDoDia.setHours(23, 59, 59, 999)
-
 const tempoRestante = fimDoDia - agora
-
 const horas = Math.floor(tempoRestante / (1000 * 60 * 60))
-const minutos = Math.floor(
-  (tempoRestante / (1000 * 60)) % 60
-)
+const minutos = Math.floor((tempoRestante / (1000 * 60)) % 60)
 
 // ===============================
-// 📌 MULTI-UI RENDER: HISTÓRICO AVANÇADO ACCORDION
+// 📌 HISTÓRICO: CONFIG VISUAL POR AÇÃO
+// ===============================
+const ACAO_CONFIG = {
+  CRIACAO:      { label: "Missão Criada",            cor: "text-blue-400",   borda: "border-blue-800/50",   fundo: "bg-blue-950/20",    Icon: Plus },
+  CONCLUSAO:    { label: "Concluída",                cor: "text-green-400",  borda: "border-green-800/50",  fundo: "bg-green-950/20",   Icon: CheckCircle2 },
+  FALHA:        { label: "Falha — não realizada",    cor: "text-red-400",    borda: "border-red-800/50",    fundo: "bg-red-950/20",     Icon: XCircle },
+  REMOCAO:      { label: "Removida permanentemente", cor: "text-red-400",    borda: "border-red-900/40",    fundo: "bg-red-950/10",     Icon: Trash2 },
+  ARQUIVAMENTO: { label: "Arquivada",                cor: "text-yellow-500", borda: "border-yellow-800/40", fundo: "bg-yellow-950/15",  Icon: Archive },
+  DESMARCADA:   { label: "Conclusão desfeita",       cor: "text-orange-400", borda: "border-orange-800/40", fundo: "bg-orange-950/15",  Icon: XCircle },
+  RESTAURADA:   { label: "Restaurada da lixeira",    cor: "text-cyan-400",   borda: "border-cyan-800/40",   fundo: "bg-cyan-950/15",    Icon: Target },
+};
+
+// ===============================
+// 📌 MULTI-UI RENDER: HISTÓRICO NÍVEL SAAS
 // ===============================
 const renderHistorico = () => {
-    const agrupado = logEventos.reduce((acc, log) => {
-        if (!acc[log.date]) acc[log.date] = [];
-        acc[log.date].push(log);
-        return acc;
-    }, {});
+  // Agrupa logs por data
+  const agrupado = logEventos.reduce((acc, log) => {
+    if (!acc[log.date]) acc[log.date] = [];
+    acc[log.date].push(log);
+    return acc;
+  }, {});
 
-    const datasLog = Object.keys(agrupado).sort((a,b) => new Date(b) - new Date(a));
+  const datasLog = Object.keys(agrupado).sort((a, b) => new Date(b) - new Date(a));
 
-    if (datasLog.length === 0) {
-        return <div className="text-center py-10 text-zinc-500">Nenhum evento registrado ainda.</div>
-    }
+  // Métricas globais
+  const totalXpGanho   = logEventos.filter(l => l.action === "CONCLUSAO").reduce((sum, l) => sum + l.xp, 0);
+  const totalConcluidas = logEventos.filter(l => l.action === "CONCLUSAO").length;
+  const totalFalhas    = logEventos.filter(l => l.action === "FALHA").length;
+  const totalCriadas   = logEventos.filter(l => l.action === "CRIACAO").length;
+  const taxaSucesso    = totalCriadas === 0 ? 0 : Math.round((totalConcluidas / totalCriadas) * 100);
 
+  if (datasLog.length === 0) {
     return (
-        <div className="space-y-4 animate-in fade-in duration-300">
-            {/* Header explicativo do Histórico Geral */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex gap-4 items-center">
-               <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-full">
-                 <History size={30} />
-               </div>
-               <div>
-                 <h2 className="text-lg font-bold text-white">Histórico e Eventos</h2>
-                 <p className="text-sm text-zinc-400">Clique nas datas abaixo para expandir e investigar tudo que aconteceu (adições, falhas, conclusões e muito mais).</p>
-               </div>
-            </div>
+      <div className="flex flex-col items-center justify-center py-16 gap-3 text-zinc-600">
+        <History size={48} strokeWidth={1} />
+        <p className="text-base font-medium">Nenhum evento registrado ainda.</p>
+        <p className="text-sm">Crie ou complete missões para ver o histórico aqui.</p>
+      </div>
+    );
+  }
 
-            {datasLog.map(data => {
-                const logsDoDia = agrupado[data];
-                const partes = data.split("-");
-                const fData = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : data;
-                
-                const xpNoDia = logsDoDia.filter(l => l.action === "CONCLUSAO").reduce((sum, l) => sum + l.xp, 0);
-                const isExpanded = data === dataExpandida;
+  return (
+    <div className="space-y-5">
 
-                return (
-                    <div key={data} className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden shadow">
-                        <button 
-                            className="w-full text-left px-5 py-4 flex justify-between items-center hover:bg-zinc-800/80 transition-colors"
-                            onClick={() => setDataExpandida(isExpanded ? null : data)}
-                        >
-                             <div className="flex items-center gap-3">
-                                 {isExpanded ? <ChevronDown size={22} className="text-cyan-400" /> : <ChevronRight size={22} className="text-zinc-500" />}
-                                 <h3 className="font-bold text-lg text-white">
-                                     {data === hoje ? "Hoje" : fData}
-                                 </h3>
-                             </div>
-                             <div className="flex gap-4 items-center">
-                                 {xpNoDia > 0 && <span className="text-xs font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2 py-1 rounded">+{xpNoDia} XP GANHO NO DIA</span>}
-                                 <span className="text-xs font-semibold text-zinc-500">{logsDoDia.length} Registro(s)</span>
-                             </div>
-                        </button>
-                        
-                        {isExpanded && (
-                            <div className="px-5 pb-5 pt-3 border-t border-zinc-800 bg-zinc-950/40">
-                                {/* Filtros internos do dia (Todos, Conclusão, Adição, etc) */}
-                                <div className="flex gap-2 mb-5 overflow-x-auto pb-2 custom-scrollbar">
-                                    {['todos', 'CRIACAO', 'CONCLUSAO', 'FALHA', 'REMOCAO', 'ARQUIVAMENTO'].map(tf => (
-                                        <button 
-                                            key={tf}
-                                            onClick={() => setFiltroLogs(tf)}
-                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${
-                                                filtroLogs === tf 
-                                                ? 'bg-cyan-500 text-black' 
-                                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                                            }`}
-                                        >
-                                            {tf === 'todos' ? 'Mostrar Tudo' : tf}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <div className="space-y-3">
-                                    {logsDoDia
-                                        .filter(l => filtroLogs === 'todos' || l.action === filtroLogs)
-                                        .sort((a,b) => b.id - a.id) // Ordena pelo MS aleatorio/ID para garantir decrescente no dia
-                                        .map(log => {
-                                            let Icon = Calendar;
-                                            let color = "text-zinc-400";
-                                            let border = "border-zinc-800";
-                                            let labelAction = log.action;
-                                            
-                                            // Decoradores baseados na ação
-                                            if (log.action === "CRIACAO") { Icon = Plus; color = "text-blue-400"; labelAction = "Nova Missão Criada"; border = "border-blue-900/30"; }
-                                            if (log.action === "CONCLUSAO") { Icon = CheckCircle2; color = "text-green-400"; labelAction = "Missão Cumprida"; border = "border-green-900/40"; }
-                                            if (log.action === "FALHA") { Icon = XCircle; color = "text-red-500"; labelAction = "Falha Registrada"; border = "border-red-900/40"; }
-                                            if (log.action === "REMOCAO") { Icon = Trash2; color = "text-red-400"; labelAction = "Deletada Definitivo"; border = "border-red-900/30"; }
-                                            if (log.action === "ARQUIVAMENTO") { Icon = Archive; color = "text-yellow-500"; labelAction = "Enviada p/ Lixeira"; border = "border-yellow-900/30"; }
-                                            if (log.action === "DESMARCADA") { Icon = XCircle; color = "text-orange-500"; labelAction = "Status 'Completa' Removido"; }
-                                            if (log.action === "RESTAURADA") { Icon = Target; color = "text-cyan-400"; labelAction = "Tirada da Lixeira"; }
-
-                                            return (
-                                                <div key={log.id} className={`flex justify-between items-center p-4 rounded-xl border ${border} bg-zinc-900 hover:bg-zinc-800/80 transition`}>
-                                                    <div className="flex items-center gap-4">
-                                                        <div className={`p-3 rounded-full bg-zinc-950 border ${border}`}>
-                                                           <Icon size={20} className={color} />
-                                                        </div>
-                                                        <div>
-                                                            <p className={`font-bold text-base sm:text-lg ${log.action === "FALHA" || log.action === "REMOCAO" ? "text-zinc-500 line-through" : "text-zinc-200"}`}>
-                                                                {log.title}
-                                                            </p>
-                                                            <p className={`text-xs uppercase font-semibold mt-1 tracking-wider ${color}`}>
-                                                                {labelAction} <span className="text-zinc-600 px-1">|</span> <span className="text-zinc-500">{log.type}</span>
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    {log.action === "CONCLUSAO" && (
-                                                        <span className="text-sm border border-yellow-500/20 shadow-inner font-black text-yellow-500 bg-yellow-500/10 px-3 py-1.5 rounded-full">+{log.xp} XP</span>
-                                                    )}
-                                                    {log.action === "DESMARCADA" && (
-                                                        <span className="text-sm font-black text-red-500 bg-red-500/10 px-3 py-1.5 rounded-full">{log.xp} XP</span>
-                                                    )}
-                                                </div>
-                                            )
-                                        })}
-                                        
-                                        {/* Caso tente filtrar e dê vazio */}
-                                        {logsDoDia.filter(l => filtroLogs === 'todos' || l.action === filtroLogs).length === 0 && (
-                                            <p className="text-zinc-500 text-center py-6 text-sm italic">O filtro selecionado não possui eventos registrados neste dia.</p>
-                                        )}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                )
-            })}
+      {/* DASHBOARD RESUMO */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
+          <p className="text-2xl font-black text-yellow-400">{totalXpGanho}</p>
+          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide">XP Acumulado</p>
         </div>
-    )
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
+          <p className="text-2xl font-black text-green-400">{totalConcluidas}</p>
+          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide">Concluídas</p>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
+          <p className="text-2xl font-black text-red-400">{totalFalhas}</p>
+          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide">Falhas</p>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center">
+          <p className="text-2xl font-black text-cyan-400">{taxaSucesso}%</p>
+          <p className="text-xs text-zinc-500 mt-1 uppercase tracking-wide">Taxa de Sucesso</p>
+        </div>
+      </div>
+
+      {/* FILTRO GLOBAL */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {[
+          { key: 'todos',        label: 'Tudo' },
+          { key: 'CONCLUSAO',    label: '✓ Concluídas' },
+          { key: 'FALHA',        label: '✗ Falhas' },
+          { key: 'CRIACAO',      label: '+ Criações' },
+          { key: 'REMOCAO',      label: '🗑 Remoções' },
+          { key: 'ARQUIVAMENTO', label: '📦 Arquivadas' },
+        ].map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setFiltroLogs(key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+              filtroLogs === key
+                ? 'bg-cyan-500 text-black shadow-lg shadow-cyan-500/20'
+                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* LISTA ACCORDION POR DIA */}
+      <div className="space-y-3">
+        {datasLog.map(data => {
+          const logsDoDia = agrupado[data];
+
+          // Aplica filtro global
+          const logsVisiveis = filtroLogs === 'todos'
+            ? logsDoDia
+            : logsDoDia.filter(l => l.action === filtroLogs);
+
+          if (logsVisiveis.length === 0) return null;
+
+          const partes = data.split('-');
+          const dataFormatada = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : data;
+          const isHoje     = data === hoje;
+          const isExpanded = data === dataExpandida;
+
+          const xpDia         = logsVisiveis.filter(l => l.action === "CONCLUSAO").reduce((s, l) => s + l.xp, 0);
+          const concluidasDia = logsVisiveis.filter(l => l.action === "CONCLUSAO").length;
+          const falhasDia     = logsVisiveis.filter(l => l.action === "FALHA").length;
+
+          return (
+            <div key={data} className={`rounded-xl border overflow-hidden ${
+              isHoje ? 'border-cyan-500/40 shadow-md shadow-cyan-500/5' : 'border-zinc-800'
+            } bg-zinc-900`}>
+
+              {/* Cabeçalho clicável */}
+              <button
+                className="w-full text-left px-5 py-4 flex justify-between items-center gap-4 hover:bg-zinc-800/60 transition-colors"
+                onClick={() => setDataExpandida(isExpanded ? null : data)}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  {isExpanded
+                    ? <ChevronDown size={18} className="text-cyan-400 shrink-0" />
+                    : <ChevronRight size={18} className="text-zinc-600 shrink-0" />
+                  }
+                  <div className="min-w-0">
+                    <p className={`font-bold text-base ${isHoje ? 'text-cyan-400' : 'text-white'}`}>
+                      {isHoje ? '📅 Hoje' : dataFormatada}
+                    </p>
+                    <p className="text-xs text-zinc-500 mt-0.5">{logsVisiveis.length} evento(s)</p>
+                  </div>
+                </div>
+
+                {/* Badges de resumo rápido */}
+                <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                  {xpDia > 0 && (
+                    <span className="text-xs font-black text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2.5 py-1 rounded-full">
+                      +{xpDia} XP
+                    </span>
+                  )}
+                  {concluidasDia > 0 && (
+                    <span className="text-xs font-bold text-green-400 bg-green-400/10 border border-green-400/20 px-2.5 py-1 rounded-full">
+                      {concluidasDia} ✓
+                    </span>
+                  )}
+                  {falhasDia > 0 && (
+                    <span className="text-xs font-bold text-red-400 bg-red-400/10 border border-red-400/20 px-2.5 py-1 rounded-full">
+                      {falhasDia} ✗
+                    </span>
+                  )}
+                </div>
+              </button>
+
+              {/* Feed expandido do dia */}
+              {isExpanded && (
+                <div className="border-t border-zinc-800 bg-zinc-950/50 px-5 py-4 space-y-2.5">
+                  {logsVisiveis
+                    .sort((a, b) => b.id - a.id)
+                    .map(log => {
+                      const cfg = ACAO_CONFIG[log.action] || {
+                        label: log.action, cor: 'text-zinc-400',
+                        borda: 'border-zinc-800', fundo: 'bg-zinc-900', Icon: Calendar
+                      };
+                      const { label, cor, borda, fundo, Icon } = cfg;
+
+                      return (
+                        <div
+                          key={log.id}
+                          className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${borda} ${fundo} transition hover:brightness-110`}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className={`p-2 rounded-lg bg-zinc-950/60 border ${borda} shrink-0`}>
+                              <Icon size={16} className={cor} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className={`text-sm font-semibold truncate ${
+                                log.action === 'FALHA' || log.action === 'REMOCAO'
+                                  ? 'text-zinc-500 line-through'
+                                  : 'text-zinc-100'
+                              }`}>
+                                {log.title}
+                              </p>
+                              <p className={`text-xs mt-0.5 font-medium ${cor}`}>
+                                {label}
+                                <span className="text-zinc-600 mx-1.5">·</span>
+                                <span className="text-zinc-500 capitalize">{log.type}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          {log.action === "CONCLUSAO" && (
+                            <span className="text-xs font-black text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-3 py-1.5 rounded-full shrink-0">
+                              +{log.xp} XP
+                            </span>
+                          )}
+                          {log.action === "DESMARCADA" && (
+                            <span className="text-xs font-black text-orange-400 bg-orange-400/10 border border-orange-400/20 px-3 py-1.5 rounded-full shrink-0">
+                              {log.xp} XP
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Estado vazio após filtro global */}
+        {datasLog.every(data =>
+          filtroLogs !== 'todos' && !agrupado[data].some(l => l.action === filtroLogs)
+        ) && (
+          <div className="text-center py-10 text-zinc-600 text-sm italic">
+            Nenhum evento do tipo selecionado encontrado no histórico.
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
+// ===============================
+// 📌 RENDER PRINCIPAL
+// ===============================
  return (
 
   <div className="min-h-screen bg-zinc-950 text-white p-6">
     <div className="max-w-4xl mx-auto space-y-6">
-      
+
       {/* HEADER */}
       <div className="bg-zinc-900 rounded-xl border border-cyan-500/20 p-6">
         <div className="flex justify-between items-center">
@@ -664,94 +714,85 @@ const renderHistorico = () => {
         >
           <Trophy size={14} /> Objetivos
         </button>
-
-       
       </div>
 
-       {/* Novas abas de sistema: Lixeira e Histórico */}
-       <div className="flex gap-3">
-         <button
-           className={`transition flex rounded gap-1 items-center px-3 py-1 ${
-             filtro === "arquivadas" 
-               ? "bg-cyan-500 text-black font-semibold" 
-               : "bg-zinc-800 text-white hover:bg-zinc-700"
-           }`}
-           onClick={() => setFiltro("arquivadas")}
-         >
-           <Archive size={14} /> Lixeira
-         </button>
-
-         <button
-           className={`transition flex rounded gap-1 items-center px-3 py-1 ${
-             filtro === "historico" 
-               ? "bg-cyan-500 text-black font-semibold" 
-               : "bg-zinc-800 text-cyan-400 hover:bg-zinc-700"
-           }`}
-           onClick={() => setFiltro("historico")}
-         >
-           <History size={14} /> Histórico
-         </button>
-       </div>
-
-  
-       {/* Modal de confirmação */}
-  {mostrarModal && (
-  <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
-  role="dialog"
-  aria-modal="true">
-    <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-4/2">
-      <h2 className="text-lg font-semibold mb-4">
-    {tipoModal === 'remover'
-    ? "Confirmar remoção"
-    : tipoModal === 'limpar'
-    ? "Confirmar arquivamento"
-    : "Confirmar restauração"}
-    </h2>
-
-      <p className="mt-4">
-        {tipoModal === 'remover' ? 
-        "Tem certeza que deseja remover esta tarefa?" :
-        tipoModal === 'limpar' ?
-        "Deseja arquivar esta tarefa?" :
-         "Deseja restaurar esta tarefa?" }
-      </p>
-      <p className="mb-6"> {tipoModal === 'remover' ?
-      "Não será possível restaurá-la."  :
-      tipoModal === 'limpar' ?
-      "Ela poderá ser restaurada na lixeira." :
-     "Ela voltará para a lista principal." }</p>
-    
-      
-
+      {/* ABAS: Lixeira e Histórico */}
       <div className="flex gap-3">
         <button
-          onClick={fecharModal}
-          className="px-4 py-2 bg-gray-500/70 rounded hover:bg-gray-500"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={confirmarAcaoModal}
-         className={`px-4 py-2 text-white rounded ${
-            tipoModal === "remover"
-              ? "bg-red-500 hover:bg-red-600" :
-              tipoModal === 'limpar' ?
-               "bg-yellow-500 hover:bg-yellow-600" :
-               'bg-green-500   hover:bg-green-600'
+          className={`transition flex rounded gap-1 items-center px-3 py-1 ${
+            filtro === "arquivadas"
+              ? "bg-cyan-500 text-black font-semibold"
+              : "bg-zinc-800 text-white hover:bg-zinc-700"
           }`}
+          onClick={() => setFiltro("arquivadas")}
         >
-         {tipoModal === 'remover' ?
-        "Remover" :
-        tipoModal === 'limpar' ?
-         "Arquivar"  :
-         "Restaurar" }
+          <Archive size={14} /> Lixeira
+        </button>
+
+        <button
+          className={`transition flex rounded gap-1 items-center px-3 py-1 ${
+            filtro === "historico"
+              ? "bg-cyan-500 text-black font-semibold"
+              : "bg-zinc-800 text-cyan-400 hover:bg-zinc-700"
+          }`}
+          onClick={() => setFiltro("historico")}
+        >
+          <History size={14} /> Histórico
         </button>
       </div>
-    </div>
-  </div>
-)}
 
-      {/* TASKS OU HISTORICO */}
+      {/* Modal de confirmação */}
+      {mostrarModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+          role="dialog"
+          aria-modal="true">
+          <div className="bg-gray-800 p-6 rounded-lg shadow-lg w-4/5 max-w-sm">
+            <h2 className="text-lg font-semibold mb-4">
+              {tipoModal === 'remover' ? "Confirmar remoção"
+                : tipoModal === 'limpar' ? "Confirmar arquivamento"
+                : "Confirmar restauração"}
+            </h2>
+
+            <p className="mt-4">
+              {tipoModal === 'remover'
+                ? "Tem certeza que deseja remover esta tarefa?"
+                : tipoModal === 'limpar'
+                ? "Deseja arquivar esta tarefa?"
+                : "Deseja restaurar esta tarefa?"}
+            </p>
+            <p className="mb-6">
+              {tipoModal === 'remover'
+                ? "Não será possível restaurá-la."
+                : tipoModal === 'limpar'
+                ? "Ela poderá ser restaurada na lixeira."
+                : "Ela voltará para a lista principal."}
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={fecharModal}
+                className="px-4 py-2 bg-gray-500/70 rounded hover:bg-gray-500"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmarAcaoModal}
+                className={`px-4 py-2 text-white rounded ${
+                  tipoModal === "remover" ? "bg-red-500 hover:bg-red-600"
+                  : tipoModal === 'limpar' ? "bg-yellow-500 hover:bg-yellow-600"
+                  : "bg-green-500 hover:bg-green-600"
+                }`}
+              >
+                {tipoModal === 'remover' ? "Remover"
+                  : tipoModal === 'limpar' ? "Arquivar"
+                  : "Restaurar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TASKS OU HISTÓRICO */}
       <div className="space-y-3">
         {filtro === "historico" ? (
           renderHistorico()
@@ -759,166 +800,146 @@ const renderHistorico = () => {
           tarefaFiltrada.map((item) => {
             const hoje = new Date().toISOString().split("T")[0];
 
-          const ontem = new Date();
-          ontem.setDate(ontem.getDate() - 1);
-          const dataOntem = ontem.toISOString().split("T")[0];
+            const ontem = new Date();
+            ontem.setDate(ontem.getDate() - 1);
+            const dataOntem = ontem.toISOString().split("T")[0];
 
-          const jaFeitaHoje = execucoes.some(
-            (e) => e.tarefaId === item.id && e.date === hoje
-          );
-
-          const perdeuOntem =
-            item.type === "diaria" &&
-            falhasDiarias.some(
-              (f) => f.tarefaId === item.id && f.date === dataOntem
+            const jaFeitaHoje = execucoes.some(
+              (e) => e.tarefaId === item.id && e.date === hoje
             );
 
-          const tarefaExpirada =
-            item.type === "semanal" &&
-            verificarSeExpirou(item.createdAt);
+            const perdeuOntem =
+              item.type === "diaria" &&
+              falhasDiarias.some(
+                (f) => f.tarefaId === item.id && f.date === dataOntem
+              );
 
-          let diasRestantes = null;
+            const tarefaExpirada =
+              item.type === "semanal" &&
+              verificarSeExpirou(item.createdAt);
 
-          if (item.type === "semanal" && item.createdAt) {
-            const dataCriacao = new Date(item.createdAt);
-            const agora = new Date();
+            let diasRestantes = null;
 
-            const diasPassados = Math.floor(
-              (agora - dataCriacao) / (1000 * 60 * 60 * 24)
+            if (item.type === "semanal" && item.createdAt) {
+              const dataCriacao = new Date(item.createdAt);
+              const agora = new Date();
+              const diasPassados = Math.floor((agora - dataCriacao) / (1000 * 60 * 60 * 24));
+              diasRestantes = Math.max(0, 7 - diasPassados);
+            }
+
+            const bloqueada = tarefaExpirada || perdeuOntem;
+            const arquivada = tarefasOcultas.includes(item.id);
+
+            return (
+              <div
+                key={item.id}
+                className={`flex justify-between py-3 px-3 items-center rounded-xl border ${
+                  arquivada
+                    ? "bg-gray-700/40 border-gray-500 opacity-70"
+                    : perdeuOntem || tarefaExpirada
+                    ? "bg-red-900/30 border-red-500/30"
+                    : jaFeitaHoje
+                    ? "bg-green-900/30 border-green-500/30"
+                    : "bg-zinc-900 border-zinc-800"
+                }`}
+              >
+                {/* LADO ESQUERDO */}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      if (bloqueada || arquivada) return;
+                      completarTarefa(item.id);
+                    }}
+                    disabled={bloqueada || arquivada}
+                    className={`w-8 h-8 border rounded-full flex items-center justify-center ${
+                      bloqueada || arquivada
+                        ? "opacity-50 cursor-not-allowed border-gray-500"
+                        : "border-zinc-600"
+                    }`}
+                  >
+                    {jaFeitaHoje ? (
+                      <CheckCircle2 size={18} className="text-green-400" />
+                    ) : (
+                      <div className="w-3 h-3 bg-zinc-500 rounded-full" />
+                    )}
+                  </button>
+
+                  <div className="flex flex-col">
+                    <p className={`font-medium ${
+                      arquivada
+                        ? "line-through text-gray-400"
+                        : jaFeitaHoje
+                        ? "line-through text-zinc-400"
+                        : ""
+                    }`}>
+                      {item.title}
+                    </p>
+
+                    {arquivada && (
+                      <span className="text-xs bg-gray-600 text-gray-200 px-2 py-1 rounded w-fit mt-1 flex items-center gap-1">
+                        <Archive size={12} className="text-gray-300" />
+                        Arquivada
+                      </span>
+                    )}
+
+                    <p className="text-xs text-yellow-400">Missão: {item.type}</p>
+
+                    {/* DIÁRIA */}
+                    {item.type === "diaria" && (
+                      <>
+                        {perdeuOntem && !arquivada && (
+                          <p className="text-xs text-red-400">❌ Falhou ontem</p>
+                        )}
+                        {!arquivada && (
+                          <p className="text-xs text-zinc-400 mt-1">⏳ Termina em: {horas}h {minutos}m</p>
+                        )}
+                      </>
+                    )}
+
+                    {/* SEMANAL */}
+                    {item.type === "semanal" && !arquivada && (
+                      tarefaExpirada
+                        ? <p className="text-xs text-red-400">❌ Expirada</p>
+                        : <p className="text-xs text-zinc-400">⏳ {diasRestantes} dias restantes</p>
+                    )}
+
+                    {/* OBJETIVO */}
+                    {item.type === "objetivo" && !arquivada && (
+                      <p className="text-xs text-zinc-400">Objetivo livre (sem prazo)</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* LADO DIREITO */}
+                <div className="flex items-center gap-4">
+                  <span className={`font-bold ${arquivada ? "text-gray-400" : "text-yellow-400"}`}>
+                    +{item.xp}
+                  </span>
+
+                  <button onClick={() => solicitarAcaoModal(item.id, 'remover')}>
+                    <Trash2 size={18} />
+                  </button>
+
+                  {arquivada ? (
+                    <button
+                      onClick={() => solicitarAcaoModal(item.id, 'restaurar')}
+                      className="text-green-400 hover:text-green-300 transition"
+                      title="Restaurar tarefa"
+                    >
+                      <Archive size={18} />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => solicitarAcaoModal(item.id, 'limpar')}
+                      className="text-zinc-400 hover:text-white transition"
+                      title="Arquivar tarefa"
+                    >
+                      <Archive size={18} />
+                    </button>
+                  )}
+                </div>
+              </div>
             );
-
-            diasRestantes = Math.max(0, 7 - diasPassados);
-          }
-         const bloqueada = tarefaExpirada || perdeuOntem;
-
-       const arquivada = tarefasOcultas.includes(item.id);
-        return (
-  <div
-    key={item.id}
-    className={`flex justify-between py-3 px-3 items-center rounded-xl border ${
-      arquivada
-        ? "bg-gray-700/40 border-gray-500 opacity-70"
-        : perdeuOntem || tarefaExpirada
-        ? "bg-red-900/30 border-red-500/30"
-        : jaFeitaHoje
-        ? "bg-green-900/30 border-green-500/30"
-        : "bg-zinc-900 border-zinc-800"
-    }`}
-  >
-    {/* LADO ESQUERDO */}
-    <div className="flex items-center gap-3">
-      <button
-        onClick={() => {
-          if (bloqueada || arquivada) return;
-          completarTarefa(item.id);
-        }}
-        disabled={bloqueada || arquivada}
-        className={`w-8 h-8 border rounded-full flex items-center justify-center ${
-          bloqueada || arquivada
-            ? "opacity-50 cursor-not-allowed border-gray-500"
-            : "border-zinc-600"
-        }`}
-      >
-        {jaFeitaHoje ? (
-          <CheckCircle2 size={18} className="text-green-400" />
-        ) : (
-          <div className="w-3 h-3 bg-zinc-500 rounded-full" />
-        )}
-      </button>
-
-      <div className="flex flex-col">
-        {/* Título com texto riscado se arquivada */}
-        <p
-          className={`font-medium ${
-            arquivada
-              ? "line-through text-gray-400"
-              : jaFeitaHoje
-              ? "line-through text-zinc-400"
-              : ""
-          }`}
-        >
-          {item.title}
-        </p>
-
-        {/* Badge indicativo de arquivamento */}
-        {arquivada && (
-          <span className="text-xs bg-gray-600 text-gray-200 px-2 py-1 rounded w-fit mt-1 flex items-center gap-1">
-            <Archive size={12} className="text-gray-300" />
-            Arquivada
-          </span>
-        )}
-
-        <p className="text-xs text-yellow-400">
-          Missão: {item.type}
-        </p>
-
-        {/* DIÁRIA */}
-        {item.type === "diaria" && (
-          <>
-            {perdeuOntem && !arquivada && (
-              <p className="text-xs text-red-400">
-                ❌ Falhou ontem
-              </p>
-            )}
-            {!arquivada && (
-              <p className="text-xs text-zinc-400 mt-1">
-                ⏳ Termina em: {horas}h {minutos}m
-              </p>
-            )}
-          </>
-        )}
-
-        {/* SEMANAL */}
-        {item.type === "semanal" && !arquivada && (
-          tarefaExpirada ? (
-            <p className="text-xs text-red-400">❌ Expirada</p>
-          ) : (
-            <p className="text-xs text-zinc-400">
-              ⏳ {diasRestantes} dias restantes
-            </p>
-          )
-        )}
-
-        {/* OBJETIVO */}
-        {item.type === "objetivo" && !arquivada && (
-          <p className="text-xs text-zinc-400">
-            Objetivo livre (sem prazo)
-          </p>
-        )}
-      </div>
-    </div>
-
-    {/* LADO DIREITO */}
-    <div className="flex items-center gap-4">
-      <span className={`font-bold ${arquivada ? "text-gray-400" : "text-yellow-400"}`}>
-        +{item.xp}
-      </span>
-
-      <button onClick={() => solicitarAcaoModal(item.id, 'remover')}>
-        <Trash2 size={18} />
-      </button>
-
-      {/* Botão de Arquivar ou Restaurar */}
-      {arquivada ? (
-        <button
-          onClick={() => solicitarAcaoModal(item.id, 'restaurar')}
-          className="text-green-400 hover:text-green-300 transition"
-          title="Restaurar tarefa"
-        >
-          <Archive size={18} />
-        </button>
-      ) : (
-        <button
-          onClick={() => solicitarAcaoModal(item.id, 'limpar')}
-          className="text-zinc-400 hover:text-white transition"
-          title="Arquivar tarefa"
-        >
-          <Archive size={18} />
-        </button>
-      )}
-    </div>
-  </div>
-);
           })
         )}
       </div>
