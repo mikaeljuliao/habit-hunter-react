@@ -1,7 +1,5 @@
-import { Plus, Target, Calendar, Trophy, Zap, CheckCircle2, Trash2, Filter } from "lucide-react";
+import { Plus, Target, Calendar, Trophy, Zap, CheckCircle2, Trash2, Filter, ChevronDown, ChevronRight, XCircle, Archive, History } from "lucide-react";
 import React, { useState, useEffect } from 'react'
-import { Archive, History } from "lucide-react";
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function Home2() {
 
@@ -23,6 +21,8 @@ const [filtroHistorico, setFiltroHistorico] = useState('todos')
 const [mostrarModal, setMostrarModal] = useState(false)
 const [tarefaSelecionadaId, setTarefaSelecionadaId] = useState(null);
 const [tipoModal, setTipoModal] = useState(null)
+const [dataExpandida, setDataExpandida] = useState(null);
+const [filtroLogs, setFiltroLogs] = useState('todos');
 // ===============================
 // 📌 ESTADOS COM LOCALSTORAGE
 // ===============================
@@ -68,6 +68,39 @@ const [tarefasOcultas, setTarefasOcultas] = useState(() => {
 });
 
 // ===============================
+// 📌 SISTEMA DE LOGS DE EVENTOS
+// ===============================
+const [logEventos, setLogEventos] = useState(() => {
+  const salvas = localStorage.getItem('logEventos')
+  if (salvas) return JSON.parse(salvas);
+  
+  const data = new Date();
+  data.setDate(data.getDate() - 1);
+  const ontem = data.toISOString().split("T")[0];
+  data.setDate(data.getDate() - 1);
+  const anteontem = data.toISOString().split("T")[0];
+  data.setDate(data.getDate() - 1);
+  const tresDiasAtras = data.toISOString().split("T")[0];
+  
+  return [
+     { id: 101, action: "CRIACAO", date: tresDiasAtras, title: "Pagar Contas", type: "diaria", xp: 0 },
+     { id: 102, action: "CONCLUSAO", date: tresDiasAtras, title: "Ler 20 páginas", type: "diaria", xp: 50 },
+     { id: 103, action: "CRIACAO", date: anteontem, title: "Revisar Projeto", type: "semanal", xp: 0 },
+     { id: 104, action: "ARQUIVAMENTO", date: anteontem, title: "Projeto Parado", type: "objetivo", xp: 0 },
+     { id: 105, action: "FALHA", date: ontem, title: "Ir na Academia", type: "diaria", xp: 0 },
+     { id: 106, action: "REMOCAO", date: ontem, title: "Tarefa Errada", type: "diaria", xp: 0 },
+  ];
+});
+
+const registrarEvento = (action, title, type, xpGained = 0) => {
+   const hojeLocal = new Date().toISOString().split("T")[0];
+   setLogEventos(prev => [
+      { id: Date.now() + Math.random(), action, date: hojeLocal, title, type, xp: xpGained },
+      ...prev
+   ]);
+};
+
+// ===============================
 // 📌 PERSISTÊNCIA NO LOCALSTORAGE
 // ===============================
 useEffect(() => {
@@ -98,6 +131,10 @@ useEffect(() => {
   localStorage.setItem('tarefasOcultas', JSON.stringify(tarefasOcultas));
 }, [tarefasOcultas]);
 
+useEffect(() => {
+  localStorage.setItem('logEventos', JSON.stringify(logEventos));
+}, [logEventos]);
+
 // ===============================
 // 📌 VERIFICAÇÃO DE FALHAS DIÁRIAS
 // ===============================
@@ -120,20 +157,21 @@ useEffect(() => {
       date: dataOntem
     }))
 
+  const novasFalhas = falhas.filter(f => !falhasDiarias.some(p => p.tarefaId === f.tarefaId && p.date === f.date));
 
-  if (falhas.length > 0) {
-    setFalhasDiarias(prev => {
-      const novasFalhas = falhas.filter(
-        f => !prev.some(
-          p => p.tarefaId === f.tarefaId && p.date === f.date
-        )
-      )
-      return [...prev, ...novasFalhas]
-    })
+  if (novasFalhas.length > 0) {
+    setFalhasDiarias(prev => [...prev, ...novasFalhas])
+    
+    // Injeção nos logs globais:
+    const novosLogs = novasFalhas.map(f => {
+       const t = tarefa.find(x => x.id === f.tarefaId);
+       return { id: Date.now() + Math.random(), action: "FALHA", date: dataOntem, title: t ? t.title : "Desconhecido", type: t ? t.type : "diaria", xp: 0 };
+    });
+    setLogEventos(prev => [...novosLogs, ...prev]);
   }
 
   setUltimaVerificacao(hoje)
-}, [tarefa, execucoes, ultimaVerificacao])
+}, [tarefa, execucoes, ultimaVerificacao, falhasDiarias])
 
 // ===============================
 // 📌 FUNÇÕES DE NEGÓCIO
@@ -179,6 +217,8 @@ const adicionarTarefa = () => {
       createdAt: new Date().toISOString()
     }
   ])
+  
+  registrarEvento("CRIACAO", novaTarefa, tipoTarefa, 0);
 
   setNovaTarefa("")
 }
@@ -200,6 +240,7 @@ const completarTarefa = (id) => {
       )
     )
     setXp((prev) => Math.max(0, prev - tarefaEncontrada.xp))
+    registrarEvento("DESMARCADA", tarefaEncontrada.title, tarefaEncontrada.type, -tarefaEncontrada.xp);
     return
   }
 
@@ -213,9 +254,12 @@ const completarTarefa = (id) => {
       xp: tarefaEncontrada.xp
     }
   ])
+  registrarEvento("CONCLUSAO", tarefaEncontrada.title, tarefaEncontrada.type, tarefaEncontrada.xp);
 }
 
 const deletarTarefa = (id) => {
+  const t = tarefa.find(x => x.id === id);
+  if (t) registrarEvento("REMOCAO", t.title, t.type, 0);
   setTarefa(tarefa.filter(t => t.id !== id))
 }
 
@@ -236,6 +280,9 @@ const verificarSeExpirou = (createdAt) => {
 }
 
  const limparTarefa = (id) => {
+  const t = tarefa.find(x => x.id === id);
+  if (t) registrarEvento("ARQUIVAMENTO", t.title, t.type, 0);
+  
   setTarefasOcultas((tarefasAnteriores) =>
     tarefasAnteriores.includes(id) ? tarefasAnteriores : [...tarefasAnteriores, id]
   );
@@ -285,6 +332,9 @@ const tarefaFiltrada =
   
 
       const restaurarTarefa = (id) => {
+  const t = tarefa.find(x => x.id === id);
+  if (t) registrarEvento("RESTAURADA", t.title, t.type, 0);
+  
   setTarefasOcultas((prev) =>
     prev.filter((tarefaId) => tarefaId !== id)
   );
@@ -334,202 +384,137 @@ const tempoRestante = fimDoDia - agora
 
 const horas = Math.floor(tempoRestante / (1000 * 60 * 60))
 const minutos = Math.floor(
-  (tempoRestante / (1000 * 60)) % 60
-)
-
-// ===============================
-// 📌 MULTI-UI RENDER: HISTÓRICO AVANÇADO
+  (tem// ===============================
+// 📌 MULTI-UI RENDER: HISTÓRICO AVANÇADO ACCORDION
 // ===============================
 const renderHistorico = () => {
-  // 1. Coleta e Organiza Datas (Execuções + Falhas)
-  const todasDatasSet = new Set();
-  execucoes.forEach(e => todasDatasSet.add(e.date));
-  falhasDiarias.forEach(f => todasDatasSet.add(f.date));
-  
-  const datasOrdenadas = Array.from(todasDatasSet).sort((a, b) => new Date(b) - new Date(a));
+    const agrupado = logEventos.reduce((acc, log) => {
+        if (!acc[log.date]) acc[log.date] = [];
+        acc[log.date].push(log);
+        return acc;
+    }, {});
 
-  // 2. Prepara Dados para o Gráfico
-  const chartData = Array.from(todasDatasSet)
-    .sort((a, b) => new Date(a) - new Date(b))
-    .map(date => {
-      const parte = date.split('-');
-      const nomeCurto = `${parte[2]}/${parte[1]}`;
-      const xpNoDia = execucoes.filter(e => e.date === date).reduce((sum, e) => sum + e.xp, 0);
-      const falhasNoDia = falhasDiarias.filter(f => f.date === date).length;
-      return {
-        date,
-        name: nomeCurto,
-        XP: xpNoDia,
-        Falhas: falhasNoDia
-      };
-    });
+    const datasLog = Object.keys(agrupado).sort((a,b) => new Date(b) - new Date(a));
 
-  if (datasOrdenadas.length === 0) {
+    if (datasLog.length === 0) {
+        return <div className="text-center py-10 text-zinc-500">Nenhum evento registrado ainda.</div>
+    }
+
     return (
-      <div className="text-center text-zinc-500 py-10 border border-dashed border-zinc-800 rounded-xl">
-        Nenhum evento registrado ainda. Relatório vazio.
-      </div>
-    );
-  }
-
-  // Estatísticas Rápidas
-  const xpMaximoDia = Math.max(...chartData.map(d => d.XP), 0);
-  const totalFalhas = falhasDiarias.length;
-  
-  return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      
-      {/* HEADER E GRÁFICOS DO HISTÓRICO */}
-      <div className="bg-gradient-to-br from-zinc-900 to-zinc-950 rounded-2xl border border-zinc-800 p-4 sm:p-6 shadow-xl relative overflow-hidden">
-        <div className="hidden sm:block absolute -top-10 -right-10 p-8 opacity-[0.03]">
-           <History size={250} />
-        </div>
-        <h2 className="text-2xl font-black text-white mb-2 flex items-center gap-3 relative z-10">
-          <History className="text-cyan-400" size={28} /> Painel de Analytics
-        </h2>
-        <p className="text-zinc-400 text-sm mb-6 relative z-10 max-w-lg">
-          Acompanhe seu rendimento constante, evolução de experiência diária e taxas de sucesso em todas as missões cadastradas.
-        </p>
-        
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8 relative z-10">
-           <div className="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
-             <p className="text-zinc-500 text-xs font-bold uppercase mb-1">XP Recorde/Dia</p>
-             <p className="text-2xl font-black text-yellow-400">{xpMaximoDia}</p>
-           </div>
-           <div className="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
-             <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Total Completas</p>
-             <p className="text-2xl font-black text-green-400">{execucoes.length}</p>
-           </div>
-           <div className="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
-             <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Total de Falhas</p>
-             <p className="text-2xl font-black text-red-500">{totalFalhas}</p>
-           </div>
-           <div className="bg-zinc-950/50 p-4 rounded-xl border border-zinc-800">
-             <p className="text-zinc-500 text-xs font-bold uppercase mb-1">Dias Ativos</p>
-             <p className="text-2xl font-black text-cyan-400">{chartData.length}</p>
-           </div>
-        </div>
-
-        {/* COMPONENTE INTERATIVO RECHARTS */}
-        <div className="h-64 w-full relative z-10">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorXp" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4}/>
-                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="name" stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis stroke="#52525b" fontSize={12} tickLine={false} axisLine={false} />
-              <Tooltip 
-                 contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', color: '#fff' }}
-                 itemStyle={{ fontWeight: 'bold' }}
-              />
-              <Area type="monotone" dataKey="XP" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorXp)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* FILTROS INTERNOS DA TIMELINE */}
-      <div className="flex bg-zinc-900 rounded-xl border border-zinc-800 p-2 gap-2 mt-4 transition">
-        {['todos', 'completas', 'falhas'].map(tipo => (
-          <button
-            key={tipo}
-            onClick={() => setFiltroHistorico(tipo)}
-            className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all capitalize ${
-              filtroHistorico === tipo 
-                ? 'bg-cyan-500 text-black shadow-[0_0_15px_rgba(6,182,212,0.3)]' 
-                : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
-            }`}
-          >
-            {tipo === 'todos' ? 'Eventos Gerais' : tipo}
-          </button>
-        ))}
-      </div>
-
-      {/* TIMELINE DETALHADA E SEPARADA */}
-      <div className="space-y-8 mt-6">
-        {datasOrdenadas.map(data => {
-          const partes = data.split("-");
-          const dataFormatada = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : data;
-          const eHoje = data === hoje;
-          
-          let execucoesDoDia = execucoes.filter(e => e.date === data);
-          let falhasDoDia = falhasDiarias.filter(f => f.date === data);
-
-          if (filtroHistorico === 'completas') falhasDoDia = [];
-          if (filtroHistorico === 'falhas') execucoesDoDia = [];
-
-          if (execucoesDoDia.length === 0 && falhasDoDia.length === 0) return null;
-
-          const xpDiario = execucoesDoDia.reduce((total, e) => total + e.xp, 0);
-
-          return (
-            <div key={data} className="relative pl-8 border-l-[3px] border-zinc-800">
-              {/* Ponto brilhante da Timeline */}
-              <div className="absolute w-4 h-4 bg-zinc-900 border-2 border-cyan-500 rounded-full -left-[10px] top-1 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
-              
-              {/* Header do Dia */}
-              <div className="flex justify-between items-center mb-5">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  {eHoje ? "Eventos de Hoje" : `Data de Atividade: ${dataFormatada}`}
-                </h3>
-                {xpDiario > 0 && (
-                  <span className="text-xs sm:text-sm font-black text-yellow-500 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1 rounded-full shadow-inner">
-                    +{xpDiario} XP PRODUZIDO
-                  </span>
-                )}
-              </div>
-
-              {/* Box de transações */}
-              <div className="grid gap-3">
-                {/* LISTAGEM DE SUCESSOS */}
-                {execucoesDoDia.map((exec, idx) => {
-                  const t = tarefa.find(t => t.id === exec.tarefaId);
-                  const title = t ? t.title : "(Missão Criptografada ou Deletada)";
-                  const type = t ? t.type : "desconhecido";
-                  
-                  return (
-                    <div key={`exec-${idx}`} className="flex justify-between py-3 px-4 items-center rounded-xl bg-gradient-to-r from-zinc-900 to-zinc-950 border border-zinc-800 hover:border-zinc-700 transition cursor-default">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20 shadow-inner">
-                           <CheckCircle2 size={24} className="text-green-500 shadow-green-500" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-zinc-100 text-base sm:text-lg">{title}</p>
-                          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">{type}</p>
-                        </div>
-                      </div>
-                      <span className="text-base sm:text-lg font-black text-yellow-400">+{exec.xp} XP</span>
-                    </div>
-                  );
-                })}
-
-                {/* LISTAGEM DE FALHAS */}
-                {falhasDoDia.map((falha, idx) => {
-                  const t = tarefa.find(t => t.id === falha.tarefaId);
-                  const title = t ? t.title : "(Missão Deletada antes do Fim)";
-                  const type = t ? t.type : "falha sistemática";
-
-                  return (
-                    <div key={`falha-${idx}`} className="flex justify-between py-3 px-4 items-center rounded-xl bg-red-950/20 border border-red-900/30">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center border border-red-900/40">
-                           <Trash2 size={20} className="text-red-500 opacity-80" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-zinc-400 text-base sm:text-lg line-through">{title}</p>
-                          <p className="text-xs font-semibold text-red-500/60 uppercase tracking-widest">Penalidade — {type}</p>
-                        </div>
-                      </div>
-                      <span className="text-xs sm:text-sm font-bold text-red-500/40 italic">Omissão registrada</span>
-                    </div>
-                  );
-                })}
-              </div>
+        <div className="space-y-4 animate-in fade-in duration-300">
+            {/* Header explicativo do Histórico Geral */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex gap-4 items-center">
+               <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-full">
+                 <History size={30} />
+               </div>
+               <div>
+                 <h2 className="text-lg font-bold text-white">Histórico e Eventos</h2>
+                 <p className="text-sm text-zinc-400">Clique nas datas abaixo para expandir e investigar tudo que aconteceu (adições, falhas, conclusões e muito mais).</p>
+               </div>
             </div>
+
+            {datasLog.map(data => {
+                const logsDoDia = agrupado[data];
+                const partes = data.split("-");
+                const fData = partes.length === 3 ? `${partes[2]}/${partes[1]}/${partes[0]}` : data;
+                
+                const xpNoDia = logsDoDia.filter(l => l.action === "CONCLUSAO").reduce((sum, l) => sum + l.xp, 0);
+                const isExpanded = data === dataExpandida;
+
+                return (
+                    <div key={data} className="bg-zinc-900 rounded-xl border border-zinc-800 overflow-hidden shadow">
+                        <button 
+                            className="w-full text-left px-5 py-4 flex justify-between items-center hover:bg-zinc-800/80 transition-colors"
+                            onClick={() => setDataExpandida(isExpanded ? null : data)}
+                        >
+                             <div className="flex items-center gap-3">
+                                 {isExpanded ? <ChevronDown size={22} className="text-cyan-400" /> : <ChevronRight size={22} className="text-zinc-500" />}
+                                 <h3 className="font-bold text-lg text-white">
+                                     {data === hoje ? "Hoje" : fData}
+                                 </h3>
+                             </div>
+                             <div className="flex gap-4 items-center">
+                                 {xpNoDia > 0 && <span className="text-xs font-bold text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-2 py-1 rounded">+{xpNoDia} XP GANHO NO DIA</span>}
+                                 <span className="text-xs font-semibold text-zinc-500">{logsDoDia.length} Registro(s)</span>
+                             </div>
+                        </button>
+                        
+                        {isExpanded && (
+                            <div className="px-5 pb-5 pt-3 border-t border-zinc-800 bg-zinc-950/40">
+                                {/* Filtros internos do dia (Todos, Conclusão, Adição, etc) */}
+                                <div className="flex gap-2 mb-5 overflow-x-auto pb-2 custom-scrollbar">
+                                    {['todos', 'CRIACAO', 'CONCLUSAO', 'FALHA', 'REMOCAO', 'ARQUIVAMENTO'].map(tf => (
+                                        <button 
+                                            key={tf}
+                                            onClick={() => setFiltroLogs(tf)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${
+                                                filtroLogs === tf 
+                                                ? 'bg-cyan-500 text-black' 
+                                                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                                            }`}
+                                        >
+                                            {tf === 'todos' ? 'Mostrar Tudo' : tf}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <div className="space-y-3">
+                                    {logsDoDia
+                                        .filter(l => filtroLogs === 'todos' || l.action === filtroLogs)
+                                        .sort((a,b) => b.id - a.id) // Ordena pelo MS aleatorio/ID para garantir decrescente no dia
+                                        .map(log => {
+                                            let Icon = Calendar;
+                                            let color = "text-zinc-400";
+                                            let border = "border-zinc-800";
+                                            let labelAction = log.action;
+                                            
+                                            // Decoradores baseados na ação
+                                            if (log.action === "CRIACAO") { Icon = Plus; color = "text-blue-400"; labelAction = "Nova Missão Criada"; border = "border-blue-900/30"; }
+                                            if (log.action === "CONCLUSAO") { Icon = CheckCircle2; color = "text-green-400"; labelAction = "Missão Cumprida"; border = "border-green-900/40"; }
+                                            if (log.action === "FALHA") { Icon = XCircle; color = "text-red-500"; labelAction = "Falha Registrada"; border = "border-red-900/40"; }
+                                            if (log.action === "REMOCAO") { Icon = Trash2; color = "text-red-400"; labelAction = "Deletada Definitivo"; border = "border-red-900/30"; }
+                                            if (log.action === "ARQUIVAMENTO") { Icon = Archive; color = "text-yellow-500"; labelAction = "Enviada p/ Lixeira"; border = "border-yellow-900/30"; }
+                                            if (log.action === "DESMARCADA") { Icon = XCircle; color = "text-orange-500"; labelAction = "Status 'Completa' Removido"; }
+                                            if (log.action === "RESTAURADA") { Icon = Target; color = "text-cyan-400"; labelAction = "Tirada da Lixeira"; }
+
+                                            return (
+                                                <div key={log.id} className={`flex justify-between items-center p-4 rounded-xl border ${border} bg-zinc-900 hover:bg-zinc-800/80 transition`}>
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`p-3 rounded-full bg-zinc-950 border ${border}`}>
+                                                           <Icon size={20} className={color} />
+                                                        </div>
+                                                        <div>
+                                                            <p className={`font-bold text-base sm:text-lg ${log.action === "FALHA" || log.action === "REMOCAO" ? "text-zinc-500 line-through" : "text-zinc-200"}`}>
+                                                                {log.title}
+                                                            </p>
+                                                            <p className={`text-xs uppercase font-semibold mt-1 tracking-wider ${color}`}>
+                                                                {labelAction} <span className="text-zinc-600 px-1">|</span> <span className="text-zinc-500">{log.type}</span>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    {log.action === "CONCLUSAO" && (
+                                                        <span className="text-sm border border-yellow-500/20 shadow-inner font-black text-yellow-500 bg-yellow-500/10 px-3 py-1.5 rounded-full">+{log.xp} XP</span>
+                                                    )}
+                                                    {log.action === "DESMARCADA" && (
+                                                        <span className="text-sm font-black text-red-500 bg-red-500/10 px-3 py-1.5 rounded-full">{log.xp} XP</span>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                        
+                                        {/* Caso tente filtrar e dê vazio */}
+                                        {logsDoDia.filter(l => filtroLogs === 'todos' || l.action === filtroLogs).length === 0 && (
+                                            <p className="text-zinc-500 text-center py-6 text-sm italic">O filtro selecionado não possui eventos registrados neste dia.</p>
+                                        )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
           );
         })}
       </div>
