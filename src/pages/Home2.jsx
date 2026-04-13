@@ -384,7 +384,10 @@ const tempoRestante = fimDoDia - agora
 
 const horas = Math.floor(tempoRestante / (1000 * 60 * 60))
 const minutos = Math.floor(
-  (tem// ===============================
+  (tempoRestante / (1000 * 60)) % 60
+)
+
+// ===============================
 // 📌 MULTI-UI RENDER: HISTÓRICO AVANÇADO ACCORDION
 // ===============================
 const renderHistorico = () => {
@@ -515,12 +518,6 @@ const renderHistorico = () => {
         </div>
     )
 }
-          );
-        })}
-      </div>
-    </div>
-  );
-};
 
  return (
 
