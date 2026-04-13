@@ -241,7 +241,17 @@ const completarTarefa = (id) => {
   if (jaExecutouHoje) {
     setExecucoes(execucoes.filter((e) => !(e.tarefaId === id && e.date === hoje)))
     setXp((prev) => Math.max(0, prev - tarefaEncontrada.xp))
-    registrarEvento("DESMARCADA", tarefaEncontrada.title, tarefaEncontrada.type, -tarefaEncontrada.xp);
+    // ✅ Remove o CONCLUSAO correspondente do log (mesma tarefa, mesmo dia)
+    // e registra DESMARCADA — o histórico fica consistente com o estado real
+    setLogEventos(prev => {
+      const semConclusao = prev.filter(
+        l => !(l.action === 'CONCLUSAO' && l.title === tarefaEncontrada.title && l.date === hoje)
+      );
+      return [
+        { id: Date.now() + Math.random(), action: 'DESMARCADA', date: hoje, title: tarefaEncontrada.title, type: tarefaEncontrada.type, xp: -tarefaEncontrada.xp },
+        ...semConclusao
+      ];
+    });
     return
   }
 
@@ -280,7 +290,20 @@ const limparTarefa = (id) => {
 
 const restaurarTarefa = (id) => {
   const t = tarefa.find(x => x.id === id);
-  if (t) registrarEvento("RESTAURADA", t.title, t.type, 0);
+  if (t) {
+    const hojeLocal = new Date().toISOString().split("T")[0];
+    // ✅ Remove o ARQUIVAMENTO correspondente do log (mesma tarefa)
+    // e registra RESTAURADA — histórico fica sem a entrada de arquivamento
+    setLogEventos(prev => {
+      const semArquivamento = prev.filter(
+        l => !(l.action === 'ARQUIVAMENTO' && l.title === t.title)
+      );
+      return [
+        { id: Date.now() + Math.random(), action: 'RESTAURADA', date: hojeLocal, title: t.title, type: t.type, xp: 0 },
+        ...semArquivamento
+      ];
+    });
+  }
   setTarefasOcultas((prev) => prev.filter((tarefaId) => tarefaId !== id));
 };
 
