@@ -86,12 +86,13 @@ const [logEventos, setLogEventos] = useState(() => {
   const tresDias = d.toISOString().split("T")[0];
 
   return [
-    { id: 101, action: "CRIACAO",      date: tresDias, title: "Pagar Contas",   type: "diaria",   xp: 0 },
-    { id: 102, action: "CONCLUSAO",    date: tresDias, title: "Ler 20 páginas", type: "diaria",   xp: 50 },
-    { id: 103, action: "CRIACAO",      date: anteontem, title: "Revisar Projeto", type: "semanal", xp: 0 },
-    { id: 104, action: "ARQUIVAMENTO", date: anteontem, title: "Projeto Parado",  type: "objetivo",xp: 0 },
-    { id: 105, action: "FALHA",        date: ontem,    title: "Ir na Academia", type: "diaria",   xp: 0 },
-    { id: 106, action: "REMOCAO",      date: ontem,    title: "Tarefa Errada",  type: "diaria",   xp: 0 },
+    { id: 102, action: "CONCLUSAO",    date: tresDias,  title: "Ler 20 páginas",  type: "diaria",  xp: 50 },
+    { id: 103, action: "CONCLUSAO",    date: tresDias,  title: "Meditar 10 min",  type: "diaria",  xp: 50 },
+    { id: 104, action: "ARQUIVAMENTO", date: anteontem, title: "Projeto Parado",   type: "objetivo",xp: 0 },
+    { id: 108, action: "CONCLUSAO",    date: anteontem, title: "Revisar Projeto",  type: "semanal", xp: 200 },
+    { id: 105, action: "FALHA",        date: ontem,     title: "Ir na Academia",  type: "diaria",  xp: 0 },
+    { id: 106, action: "REMOCAO",      date: ontem,     title: "Tarefa Errada",   type: "diaria",  xp: 0 },
+    { id: 107, action: "CONCLUSAO",    date: ontem,     title: "Tomar água 2L",   type: "diaria",  xp: 50 },
   ];
 });
 
@@ -370,11 +371,12 @@ const renderHistorico = () => {
   const datasLog = Object.keys(agrupado).sort((a, b) => new Date(b) - new Date(a));
 
   // Métricas globais
-  const totalXpGanho   = logEventos.filter(l => l.action === "CONCLUSAO").reduce((sum, l) => sum + l.xp, 0);
+  const totalXpGanho    = logEventos.filter(l => l.action === "CONCLUSAO").reduce((sum, l) => sum + l.xp, 0);
   const totalConcluidas = logEventos.filter(l => l.action === "CONCLUSAO").length;
-  const totalFalhas    = logEventos.filter(l => l.action === "FALHA").length;
-  const totalCriadas   = logEventos.filter(l => l.action === "CRIACAO").length;
-  const taxaSucesso    = totalCriadas === 0 ? 0 : Math.round((totalConcluidas / totalCriadas) * 100);
+  const totalFalhas     = logEventos.filter(l => l.action === "FALHA").length;
+  // Taxa = concluídas / (concluídas + falhas), mostra eficiência real
+  const baseCalculo  = totalConcluidas + totalFalhas;
+  const taxaSucesso  = baseCalculo === 0 ? 0 : Math.round((totalConcluidas / baseCalculo) * 100);
 
   if (datasLog.length === 0) {
     return (
@@ -415,9 +417,10 @@ const renderHistorico = () => {
           { key: 'todos',        label: 'Tudo' },
           { key: 'CONCLUSAO',    label: '✓ Concluídas' },
           { key: 'FALHA',        label: '✗ Falhas' },
-          { key: 'CRIACAO',      label: '+ Criações' },
-          { key: 'REMOCAO',      label: '🗑 Remoções' },
+          { key: 'REMOCAO',      label: '🗑 Removidas' },
           { key: 'ARQUIVAMENTO', label: '📦 Arquivadas' },
+          { key: 'DESMARCADA',   label: '↩ Desfeitas' },
+          { key: 'RESTAURADA',   label: '♻ Restauradas' },
         ].map(({ key, label }) => (
           <button
             key={key}
@@ -438,10 +441,11 @@ const renderHistorico = () => {
         {datasLog.map(data => {
           const logsDoDia = agrupado[data];
 
-          // Aplica filtro global
-          const logsVisiveis = filtroLogs === 'todos'
+          // Aplica filtro global (ignora CRIACAO sempre)
+          const logsVisiveis = (filtroLogs === 'todos'
             ? logsDoDia
-            : logsDoDia.filter(l => l.action === filtroLogs);
+            : logsDoDia.filter(l => l.action === filtroLogs)
+          ).filter(l => l.action !== 'CRIACAO');
 
           if (logsVisiveis.length === 0) return null;
 
@@ -450,9 +454,13 @@ const renderHistorico = () => {
           const isHoje     = data === hoje;
           const isExpanded = data === dataExpandida;
 
-          const xpDia         = logsVisiveis.filter(l => l.action === "CONCLUSAO").reduce((s, l) => s + l.xp, 0);
-          const concluidasDia = logsVisiveis.filter(l => l.action === "CONCLUSAO").length;
-          const falhasDia     = logsVisiveis.filter(l => l.action === "FALHA").length;
+          // Stats do dia (sempre usando todos os logs do dia, sem filtro global)
+          const logsCompletoDia = logsDoDia.filter(l => l.action !== 'CRIACAO');
+          const xpDia           = logsCompletoDia.filter(l => l.action === "CONCLUSAO").reduce((s, l) => s + l.xp, 0);
+          const concluidasDia   = logsCompletoDia.filter(l => l.action === "CONCLUSAO").length;
+          const falhasDia       = logsCompletoDia.filter(l => l.action === "FALHA").length;
+          const removidosDia    = logsCompletoDia.filter(l => l.action === "REMOCAO").length;
+          const arquivadosDia   = logsCompletoDia.filter(l => l.action === "ARQUIVAMENTO").length;
 
           return (
             <div key={data} className={`rounded-xl border overflow-hidden ${
@@ -499,54 +507,109 @@ const renderHistorico = () => {
 
               {/* Feed expandido do dia */}
               {isExpanded && (
-                <div className="border-t border-zinc-800 bg-zinc-950/50 px-5 py-4 space-y-2.5">
-                  {logsVisiveis
-                    .sort((a, b) => b.id - a.id)
-                    .map(log => {
-                      const cfg = ACAO_CONFIG[log.action] || {
-                        label: log.action, cor: 'text-zinc-400',
-                        borda: 'border-zinc-800', fundo: 'bg-zinc-900', Icon: Calendar
-                      };
-                      const { label, cor, borda, fundo, Icon } = cfg;
+                <div className="border-t border-zinc-800 bg-zinc-950/50 px-5 py-4 space-y-4">
 
-                      return (
-                        <div
-                          key={log.id}
-                          className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${borda} ${fundo} transition hover:brightness-110`}
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <div className={`p-2 rounded-lg bg-zinc-950/60 border ${borda} shrink-0`}>
-                              <Icon size={16} className={cor} />
+                  {/* ── RESUMO RÁPIDO DO DIA ── */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+                      <p className="text-lg font-black text-yellow-400">{xpDia > 0 ? `+${xpDia}` : 0}</p>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">XP no dia</p>
+                    </div>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+                      <p className="text-lg font-black text-green-400">{concluidasDia}</p>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Concluídas</p>
+                    </div>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+                      <p className="text-lg font-black text-red-400">{falhasDia}</p>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Falhas</p>
+                    </div>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-center">
+                      <p className="text-lg font-black text-zinc-400">{removidosDia + arquivadosDia}</p>
+                      <p className="text-[10px] text-zinc-500 uppercase tracking-wide mt-0.5">Removidas/Arq.</p>
+                    </div>
+                  </div>
+
+                  {/* ── FILTRO INTERNO DO DIA ── */}
+                  <div className="flex gap-2 overflow-x-auto pb-1">
+                    {[
+                      { key: 'todos',        label: 'Tudo' },
+                      { key: 'CONCLUSAO',    label: '✓ Concluídas' },
+                      { key: 'FALHA',        label: '✗ Falhas' },
+                      { key: 'REMOCAO',      label: '🗑 Removidas' },
+                      { key: 'ARQUIVAMENTO', label: '📦 Arquivadas' },
+                      { key: 'DESMARCADA',   label: '↩ Desfeitas' },
+                      { key: 'RESTAURADA',   label: '♻ Restauradas' },
+                    ].map(({ key, label }) => (
+                      <button
+                        key={key}
+                        onClick={() => setFiltroLogs(key)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all ${
+                          filtroLogs === key
+                            ? 'bg-cyan-500 text-black'
+                            : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── FEED DE EVENTOS ── */}
+                  <div className="space-y-2">
+                    {logsVisiveis
+                      .sort((a, b) => b.id - a.id)
+                      .map(log => {
+                        const cfg = ACAO_CONFIG[log.action] || {
+                          label: log.action, cor: 'text-zinc-400',
+                          borda: 'border-zinc-800', fundo: 'bg-zinc-900', Icon: Calendar
+                        };
+                        const { label, cor, borda, fundo, Icon } = cfg;
+
+                        return (
+                          <div
+                            key={log.id}
+                            className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border ${borda} ${fundo} transition hover:brightness-110`}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`p-2 rounded-lg bg-zinc-950/60 border ${borda} shrink-0`}>
+                                <Icon size={16} className={cor} />
+                              </div>
+                              <div className="min-w-0">
+                                <p className={`text-sm font-semibold truncate ${
+                                  log.action === 'FALHA' || log.action === 'REMOCAO'
+                                    ? 'text-zinc-500 line-through'
+                                    : 'text-zinc-100'
+                                }`}>
+                                  {log.title}
+                                </p>
+                                <p className={`text-xs mt-0.5 font-medium ${cor}`}>
+                                  {label}
+                                  <span className="text-zinc-600 mx-1.5">·</span>
+                                  <span className="text-zinc-500 capitalize">{log.type}</span>
+                                </p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className={`text-sm font-semibold truncate ${
-                                log.action === 'FALHA' || log.action === 'REMOCAO'
-                                  ? 'text-zinc-500 line-through'
-                                  : 'text-zinc-100'
-                              }`}>
-                                {log.title}
-                              </p>
-                              <p className={`text-xs mt-0.5 font-medium ${cor}`}>
-                                {label}
-                                <span className="text-zinc-600 mx-1.5">·</span>
-                                <span className="text-zinc-500 capitalize">{log.type}</span>
-                              </p>
-                            </div>
+
+                            {log.action === "CONCLUSAO" && (
+                              <span className="text-xs font-black text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-3 py-1.5 rounded-full shrink-0">
+                                +{log.xp} XP
+                              </span>
+                            )}
+                            {log.action === "DESMARCADA" && (
+                              <span className="text-xs font-black text-orange-400 bg-orange-400/10 border border-orange-400/20 px-3 py-1.5 rounded-full shrink-0">
+                                {log.xp} XP
+                              </span>
+                            )}
                           </div>
+                        );
+                      })}
 
-                          {log.action === "CONCLUSAO" && (
-                            <span className="text-xs font-black text-yellow-400 bg-yellow-400/10 border border-yellow-400/20 px-3 py-1.5 rounded-full shrink-0">
-                              +{log.xp} XP
-                            </span>
-                          )}
-                          {log.action === "DESMARCADA" && (
-                            <span className="text-xs font-black text-orange-400 bg-orange-400/10 border border-orange-400/20 px-3 py-1.5 rounded-full shrink-0">
-                              {log.xp} XP
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
+                    {logsVisiveis.length === 0 && (
+                      <p className="text-zinc-600 text-sm text-center py-4 italic">
+                        Nenhum evento deste tipo neste dia.
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
