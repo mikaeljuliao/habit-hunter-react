@@ -6,6 +6,8 @@ import Filtros from "../components/Filtros/Filtros";
 import { ListaTarefas } from "../components/ListaTarefas/ListaTarefas";
 import ModalConfirmacao from "../components/ModalConfirmacao/ModalConfirmacao";
 import ModalSemanal from "../components/ModalSemanal/ModalSemanal";
+import { Historico } from "../components/Historico/Historico";
+import { History } from "lucide-react";
 
 // ===============================
 // 📌 CONSTANTES
@@ -77,6 +79,48 @@ export default function Home() {
   });
 
   // ===============================
+  // 📌 SISTEMA DE LOGS DE EVENTOS
+  // ===============================
+  const [logEventos, setLogEventos] = useState(() => {
+    const salvas = localStorage.getItem("logEventos");
+    if (salvas) return JSON.parse(salvas);
+
+    // Mock inicial para visualização nos primeiros 3 dias
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const ontem = d.toISOString().split("T")[0];
+    d.setDate(d.getDate() - 1);
+    const anteontem = d.toISOString().split("T")[0];
+    d.setDate(d.getDate() - 1);
+    const tresDias = d.toISOString().split("T")[0];
+
+    return [
+      { id: 102, action: "CONCLUSAO",    date: tresDias,  title: "Ler 20 páginas",  type: "diaria",  xp: 50 },
+      { id: 103, action: "CONCLUSAO",    date: tresDias,  title: "Meditar 10 min",  type: "diaria",  xp: 50 },
+      { id: 104, action: "ARQUIVAMENTO", date: anteontem, title: "Projeto Parado",   type: "objetivo",xp: 0 },
+      { id: 108, action: "CONCLUSAO",    date: anteontem, title: "Revisar Projeto",  type: "semanal", xp: 200 },
+      { id: 105, action: "FALHA",        date: ontem,     title: "Ir na Academia",  type: "diaria",  xp: 0 },
+      { id: 106, action: "REMOCAO",      date: ontem,     title: "Tarefa Errada",   type: "diaria",  xp: 0 },
+      { id: 107, action: "CONCLUSAO",    date: ontem,     title: "Tomar água 2L",   type: "diaria",  xp: 50 },
+    ];
+  });
+
+  const registrarEvento = (action, title, type, xpGained = 0) => {
+    const hojeLocal = new Date().toISOString().split("T")[0];
+    setLogEventos((prev) => [
+      {
+        id: Date.now() + Math.random(),
+        action,
+        date: hojeLocal,
+        title,
+        type,
+        xp: xpGained,
+      },
+      ...prev,
+    ]);
+  };
+
+  // ===============================
   // 📌 PERSISTÊNCIA NO LOCALSTORAGE
   // ===============================
   useEffect(() => {
@@ -109,6 +153,10 @@ export default function Home() {
     localStorage.setItem("tarefasOcultas", JSON.stringify(tarefasOcultas));
   }, [tarefasOcultas]);
 
+  useEffect(() => {
+    localStorage.setItem("logEventos", JSON.stringify(logEventos));
+  }, [logEventos]);
+
   // ===============================
   // 📌 VERIFICAÇÃO DE FALHAS DIÁRIAS
   // ===============================
@@ -138,6 +186,20 @@ export default function Home() {
         );
         return [...prev, ...novasFalhas];
       });
+
+      // Registrar falhas no histórico
+      const novosLogs = falhas.map((f) => {
+        const t = tarefa.find((x) => x.id === f.tarefaId);
+        return {
+          id: Date.now() + Math.random(),
+          action: "FALHA",
+          date: dataOntem,
+          title: t ? t.title : "Desconhecido",
+          type: t ? t.type : "diaria",
+          xp: 0,
+        };
+      });
+      setLogEventos((prev) => [...novosLogs, ...prev]);
     }
 
     setUltimaVerificacao(hoje);
@@ -188,6 +250,7 @@ export default function Home() {
     ]);
 
     setNovaTarefa("");
+    registrarEvento("CRIACAO", novaTarefa, tipoTarefa, 0);
   };
 
   const finalizarAdicaoSemanal = (duracao) => {
@@ -208,6 +271,7 @@ export default function Home() {
     setNovaTarefa("");
     setTarefaPendente(null);
     setMostrarModalSemanal(false);
+    registrarEvento("CRIACAO", tarefaPendente.title, "semanal", 0);
   };
 
   const completarTarefa = (id) => {
@@ -224,6 +288,29 @@ export default function Home() {
         execucoes.filter((e) => !(e.tarefaId === id && e.date === hoje))
       );
       setXp((prev) => Math.max(0, prev - tarefaEncontrada.xp));
+
+      // ✅ Remove o CONCLUSAO correspondente do log e registra DESMARCADA
+      setLogEventos((prev) => {
+        const semConclusao = prev.filter(
+          (l) =>
+            !(
+              l.action === "CONCLUSAO" &&
+              l.title === tarefaEncontrada.title &&
+              l.date === hoje
+            )
+        );
+        return [
+          {
+            id: Date.now() + Math.random(),
+            action: "DESMARCADA",
+            date: hoje,
+            title: tarefaEncontrada.title,
+            type: tarefaEncontrada.type,
+            xp: -tarefaEncontrada.xp,
+          },
+          ...semConclusao,
+        ];
+      });
       return;
     }
 
@@ -237,9 +324,18 @@ export default function Home() {
         xp: tarefaEncontrada.xp,
       },
     ]);
+
+    registrarEvento(
+      "CONCLUSAO",
+      tarefaEncontrada.title,
+      tarefaEncontrada.type,
+      tarefaEncontrada.xp
+    );
   };
 
   const deletarTarefa = (id) => {
+    const t = tarefa.find((x) => x.id === id);
+    if (t) registrarEvento("REMOCAO", t.title, t.type, 0);
     setTarefa(tarefa.filter((t) => t.id !== id));
   };
 
@@ -257,6 +353,8 @@ export default function Home() {
   };
 
   const limparTarefa = (id) => {
+    const t = tarefa.find((x) => x.id === id);
+    if (t) registrarEvento("ARQUIVAMENTO", t.title, t.type, 0);
     setTarefasOcultas((tarefasAnteriores) =>
       tarefasAnteriores.includes(id)
         ? tarefasAnteriores
@@ -265,6 +363,27 @@ export default function Home() {
   };
 
   const restaurarTarefa = (id) => {
+    const t = tarefa.find((x) => x.id === id);
+    if (t) {
+      const hojeLocal = new Date().toISOString().split("T")[0];
+      // ✅ Remove o ARQUIVAMENTO correspondente do log e registra RESTAURADA
+      setLogEventos((prev) => {
+        const semArquivamento = prev.filter(
+          (l) => !(l.action === "ARQUIVAMENTO" && l.title === t.title)
+        );
+        return [
+          {
+            id: Date.now() + Math.random(),
+            action: "RESTAURADA",
+            date: hojeLocal,
+            title: t.title,
+            type: t.type,
+            xp: 0,
+          },
+          ...semArquivamento,
+        ];
+      });
+    }
     setTarefasOcultas((prev) => prev.filter((tarefaId) => tarefaId !== id));
   };
 
@@ -360,24 +479,39 @@ export default function Home() {
         <Filtros filtro={filtro} setFiltro={setFiltro} />
 
         {/* Novo botão de Lixeira exatamente como no Home2 */}
-        <div>
+        <div className="flex gap-3">
           <button
-            className="bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1"
+            className={`bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1 ${filtro === 'arquivadas' ? 'ring-1 ring-zinc-500' : ''}`}
             onClick={() => setFiltro("arquivadas")}
           >
             <Archive size={14} /> Lixeira
           </button>
+
+          <button
+            className={`bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1 ${filtro === 'historico' ? 'ring-1 ring-cyan-500 text-cyan-400' : ''}`}
+            onClick={() => setFiltro("historico")}
+          >
+            <History size={14} /> Histórico
+          </button>
         </div>
 
-        <ListaTarefas
-          tarefas={tarefaFiltrada}
-          execucoes={execucoes}
-          falhasDiarias={falhasDiarias}
-          tarefasOcultas={tarefasOcultas}
-          verificarSeExpirou={verificarSeExpirou}
-          completarTarefa={completarTarefa}
-          solicitarAcaoModal={solicitarAcaoModal}
-        />
+        {filtro === "historico" ? (
+          <Historico 
+            logEventos={logEventos} 
+            execucoes={execucoes} 
+            falhasDiarias={falhasDiarias} 
+          />
+        ) : (
+          <ListaTarefas
+            tarefas={tarefaFiltrada}
+            execucoes={execucoes}
+            falhasDiarias={falhasDiarias}
+            tarefasOcultas={tarefasOcultas}
+            verificarSeExpirou={verificarSeExpirou}
+            completarTarefa={completarTarefa}
+            solicitarAcaoModal={solicitarAcaoModal}
+          />
+        )}
 
         <ModalConfirmacao
           aberto={mostrarModal}
