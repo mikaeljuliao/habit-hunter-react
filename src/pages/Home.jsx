@@ -78,6 +78,10 @@ export default function Home() {
     return ocultasSalvas ? JSON.parse(ocultasSalvas) : [];
   });
 
+  const [nomeJogador, setNomeJogador] = useState(() => {
+    return localStorage.getItem("nomeJogador") || "JOGADOR";
+  });
+
   // ===============================
   // 📌 SISTEMA DE LOGS DE EVENTOS
   // ===============================
@@ -156,6 +160,10 @@ export default function Home() {
   useEffect(() => {
     localStorage.setItem("logEventos", JSON.stringify(logEventos));
   }, [logEventos]);
+
+  useEffect(() => {
+    localStorage.setItem("nomeJogador", nomeJogador);
+  }, [nomeJogador]);
 
   // ===============================
   // 📌 VERIFICAÇÃO DE FALHAS DIÁRIAS
@@ -465,6 +473,8 @@ export default function Home() {
           xpNecessario={xpNecessario}
           progresso={progresso}
           stats={stats}
+          nomeJogador={nomeJogador}
+          setNomeJogador={setNomeJogador}
         />
 
         <FormularioTarefa
@@ -477,23 +487,6 @@ export default function Home() {
         />
 
         <Filtros filtro={filtro} setFiltro={setFiltro} />
-
-        {/* Novo botão de Lixeira exatamente como no Home2 */}
-        <div className="flex gap-3">
-          <button
-            className={`bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1 ${filtro === 'arquivadas' ? 'ring-1 ring-zinc-500' : ''}`}
-            onClick={() => setFiltro("arquivadas")}
-          >
-            <Archive size={14} /> Lixeira
-          </button>
-
-          <button
-            className={`bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1 ${filtro === 'historico' ? 'ring-1 ring-cyan-500 text-cyan-400' : ''}`}
-            onClick={() => setFiltro("historico")}
-          >
-            <History size={14} /> Histórico
-          </button>
-        </div>
 
         {filtro === "historico" ? (
           <Historico 

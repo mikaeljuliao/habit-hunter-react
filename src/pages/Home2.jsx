@@ -1,4 +1,4 @@
-import { Plus, Target, Calendar, Trophy, Zap, CheckCircle2, Trash2, ChevronDown, ChevronRight, XCircle, Archive, History } from "lucide-react";
+import { Plus, Target, Calendar, Trophy, Zap, CheckCircle2, Trash2, ChevronDown, ChevronRight, XCircle, Archive, History, Edit2, Check } from "lucide-react";
 import React, { useState, useEffect } from 'react'
 
 export default function Home2() {
@@ -20,6 +20,11 @@ const [filtro, setFiltro] = useState('todos')
 const [mostrarModal, setMostrarModal] = useState(false)
 const [tarefaSelecionadaId, setTarefaSelecionadaId] = useState(null);
 const [tipoModal, setTipoModal] = useState(null)
+
+const [nomeJogador, setNomeJogador] = useState(() => {
+  return localStorage.getItem('nomeJogador') || "JOGADOR"
+})
+const [isEditingName, setIsEditingName] = useState(false)
 
 // Estados do Histórico
 const [dataExpandida, setDataExpandida] = useState(null);
@@ -110,6 +115,10 @@ const registrarEvento = (action, title, type, xpGained = 0) => {
 useEffect(() => {
   localStorage.setItem('tarefas', JSON.stringify(tarefa))
 }, [tarefa])
+
+useEffect(() => {
+  localStorage.setItem('nomeJogador', nomeJogador)
+}, [nomeJogador])
 
 useEffect(() => {
   localStorage.setItem('nivel', JSON.stringify(nivel))
@@ -667,174 +676,215 @@ const renderHistorico = () => {
 // ===============================
  return (
 
-  <div className="min-h-screen bg-zinc-950 text-white p-6">
-    <div className="max-w-4xl mx-auto space-y-6">
+  <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 sm:p-8 font-sans selection:bg-cyan-500/30">
+    <div className="max-w-4xl mx-auto space-y-8 pb-16">
 
       {/* HEADER */}
-      <div className="bg-zinc-900 rounded-xl border border-cyan-500/20 p-6">
-        <div className="flex justify-between items-center">
-          <div className="flex flex-col items-start">
-            <p className="text-xs text-zinc-400">CAÇADOR</p>
-            <h1 className="text-2xl text-cyan-400 font-bold">JOGADOR</h1>
+      <div className="bg-zinc-900 rounded-2xl border border-zinc-800 p-6 sm:p-8 shadow-2xl relative overflow-hidden group hover:border-cyan-500/30 transition-all duration-500">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 opacity-70 group-hover:opacity-100 transition-opacity" />
+        
+        <div className="flex justify-between items-start sm:items-center">
+          <div className="flex flex-col items-start z-10">
+            <p className="text-xs text-zinc-500 font-bold tracking-widest mb-1">CAÇADOR</p>
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  maxLength={20}
+                  value={nomeJogador}
+                  onChange={(e) => setNomeJogador(e.target.value.toUpperCase())}
+                  className="bg-zinc-950/80 text-cyan-400 font-black text-2xl sm:text-3xl px-3 py-1 rounded-lg border border-cyan-500/50 outline-none w-48 sm:w-64 max-w-[60vw] shadow-[0_0_15px_rgba(6,182,212,0.2)] focus:ring-2 focus:ring-cyan-500/40 transition-all"
+                  autoFocus
+                  onBlur={() => setIsEditingName(false)}
+                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
+                />
+                <button
+                  onMouseDown={(e) => { e.preventDefault(); setIsEditingName(false); }}
+                  className="bg-green-500/20 text-green-400 p-2 rounded-lg hover:bg-green-500/30 hover:text-green-300 transition-colors shrink-0"
+                >
+                  <Check size={20} strokeWidth={3} />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 cursor-pointer group/name sm:flex-nowrap" onClick={() => setIsEditingName(true)}>
+                <h1 className="text-3xl sm:text-4xl text-cyan-400 font-black tracking-tight drop-shadow-md transition-colors group-hover/name:text-cyan-300 truncate max-w-[50vw] sm:max-w-sm">
+                  {nomeJogador}
+                </h1>
+                {nomeJogador === "JOGADOR" ? (
+                  <div className="flex items-center gap-1.5 ml-1 px-2.5 py-1 rounded-md border border-cyan-500/20 bg-cyan-950/30 text-cyan-400 animate-pulse transition-all group-hover/name:bg-cyan-900/40 shrink-0">
+                    <Edit2 size={12} />
+                    <span className="text-[10px] font-bold tracking-widest hidden sm:inline">NOMEAR CAÇADOR</span>
+                    <span className="text-[10px] font-bold tracking-widest sm:hidden">NOMEAR</span>
+                  </div>
+                ) : (
+                  <div className="opacity-0 group-hover/name:opacity-100 transition-all duration-300 transform -translate-x-2 group-hover/name:translate-x-0 p-1.5 rounded-md text-zinc-500 hover:text-cyan-400 hover:bg-zinc-800/60 shrink-0">
+                    <Edit2 size={16} />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-col items-end">
-            <p className="text-xs text-zinc-400">RANK</p>
-            <p className="text-xl text-yellow-400 font-bold">{rank}</p>
+          <div className="flex flex-col items-end z-10 mt-2 sm:mt-0">
+            <p className="text-xs text-zinc-500 font-bold tracking-widest mb-1">RANK</p>
+            <div className="flex items-center justify-center w-14 h-14 bg-yellow-400/10 border border-yellow-400/20 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.15)] group-hover:scale-105 transition-transform duration-300">
+              <p className="text-3xl text-yellow-400 font-black drop-shadow-[0_0_10px_rgba(250,204,21,0.5)]">{rank}</p>
+            </div>
           </div>
         </div>
 
         {/* XP */}
-        <div className="mt-4">
-          <div className="flex justify-between text-sm mb-1">
-            <span className="flex items-center gap-1">
-              <Zap size={16} /> Nível {nivel}
+        <div className="mt-8 z-10 relative">
+          <div className="flex justify-between text-sm mb-2 font-medium">
+            <span className="flex items-center gap-1.5 text-cyan-100 bg-cyan-950/30 px-2 py-0.5 rounded border border-cyan-900/50">
+              <Zap size={16} className="text-cyan-400" /> Nível {nivel}
             </span>
-            <span>{xp} / {xpNecessario}</span>
+            <span className="text-zinc-400"><strong className="text-white">{xp}</strong> / {xpNecessario} XP</span>
           </div>
 
-          <div className="w-full h-2 bg-zinc-800 rounded-full">
+          <div className="w-full h-3 bg-zinc-950 rounded-full overflow-hidden border border-zinc-800/50 shadow-inner">
             <div
-              className="h-2 bg-cyan-500 rounded-full transition-all"
+              className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full transition-all duration-1000 ease-out relative"
               style={{ width: `${progresso}%` }}
-            />
+            >
+              <div className="absolute top-0 right-0 bottom-0 left-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiNmZmZiIiBmaWxsLW9wYWNpdHk9IjAuMSIvPjwvc3ZnPg==')] opacity-30 animate-[pulse_2s_linear_infinite]" />
+            </div>
           </div>
 
           {/* STATS */}
-          <div className="space-y-6 my-6">
+          <div className="space-y-4 sm:space-y-6 mt-8">
             {/* Estatísticas Gerais */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center shadow">
-                <CheckCircle2 className="mx-auto text-green-400 mb-2" size={24} />
-                <p className="text-2xl font-bold">{tarefasfeitasHoje}</p>
-                <p className="text-xs text-zinc-400 uppercase tracking-wide">
-                  Completas Hoje
-                </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-xl p-4 sm:p-5 text-center hover:bg-zinc-800/40 transition-colors duration-300 group/stat">
+                <CheckCircle2 className="mx-auto text-green-500/80 group-hover/stat:text-green-400 transition-colors mb-2 sm:mb-3 group-hover/stat:scale-110 duration-300" size={28} />
+                <p className="text-2xl sm:text-3xl font-black text-white">{tarefasfeitasHoje}</p>
+                <p className="text-[10px] sm:text-xs text-zinc-500 font-bold uppercase tracking-wider mt-1">Concluídas Hoje</p>
               </div>
 
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center shadow">
-                <Trophy className="mx-auto text-orange-400 mb-2" size={24} />
-                <p className="text-2xl font-bold">8</p>
-                <p className="text-xs text-zinc-400 uppercase tracking-wide">
-                  Dias Consecutivos
-                </p>
+              <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-xl p-4 sm:p-5 text-center hover:bg-zinc-800/40 transition-colors duration-300 group/stat">
+                <Trophy className="mx-auto text-orange-500/80 group-hover/stat:text-orange-400 transition-colors mb-2 sm:mb-3 group-hover/stat:scale-110 duration-300" size={28} />
+                <p className="text-2xl sm:text-3xl font-black text-white">8</p>
+                <p className="text-[10px] sm:text-xs text-zinc-500 font-bold uppercase tracking-wider mt-1">Dias Consecutivos</p>
               </div>
 
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 text-center shadow">
-                <Zap className="mx-auto text-yellow-400 mb-2" size={24} />
-                <p className="text-2xl font-bold">{xpTotal}</p>
-                <p className="text-xs text-zinc-400 uppercase tracking-wide">
-                  XP Total
-                </p>
+              <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-xl p-4 sm:p-5 text-center hover:bg-zinc-800/40 transition-colors duration-300 group/stat col-span-2 sm:col-span-1">
+                <Zap className="mx-auto text-yellow-500/80 group-hover/stat:text-yellow-400 transition-colors mb-2 sm:mb-3 group-hover/stat:scale-110 duration-300" size={28} />
+                <p className="text-2xl sm:text-3xl font-black text-white">{xpTotal}</p>
+                <p className="text-[10px] sm:text-xs text-zinc-500 font-bold uppercase tracking-wider mt-1">XP Total</p>
               </div>
             </div>
 
             {/* Pendências por Tipo */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 text-center">
-                <Calendar className="mx-auto text-cyan-400 mb-2" size={22} />
-                <p className="text-xl font-semibold">{pendentesDiarias}</p>
-                <p className="text-xs text-zinc-400">Diárias Pendentes</p>
+            <div className="grid grid-cols-3 gap-2 sm:gap-4">
+              <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-xl p-3 sm:p-4 text-center overflow-hidden relative cursor-default hover:border-cyan-500/30 hover:bg-zinc-900/60 transition-all duration-300 group/pend">
+                <Calendar className="mx-auto text-cyan-500/50 group-hover/pend:text-cyan-400 transition-colors mb-2 group-hover/pend:-translate-y-1 duration-300" size={20} />
+                <p className="text-lg sm:text-2xl font-bold text-white">{pendentesDiarias}</p>
+                <p className="text-[10px] sm:text-xs text-zinc-500 mt-0.5 truncate">Diárias</p>
               </div>
 
-              <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 text-center">
-                <Target className="mx-auto text-purple-400 mb-2" size={22} />
-                <p className="text-xl font-semibold">{pendentesSemanais}</p>
-                <p className="text-xs text-zinc-400">Semanais Pendentes</p>
+              <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-xl p-3 sm:p-4 text-center overflow-hidden relative cursor-default hover:border-cyan-500/30 hover:bg-zinc-900/60 transition-all duration-300 group/pend">
+                <Target className="mx-auto text-cyan-500/50 group-hover/pend:text-cyan-400 transition-colors mb-2 group-hover/pend:-translate-y-1 duration-300" size={20} />
+                <p className="text-lg sm:text-2xl font-bold text-white">{pendentesSemanais}</p>
+                <p className="text-[10px] sm:text-xs text-zinc-500 mt-0.5 truncate">Semanais</p>
               </div>
 
-              <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 text-center">
-                <Trophy className="mx-auto text-pink-400 mb-2" size={22} />
-                <p className="text-xl font-semibold">{pendentesObjetivos}</p>
-                <p className="text-xs text-zinc-400">Objetivos Pendentes</p>
+              <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-xl p-3 sm:p-4 text-center overflow-hidden relative cursor-default hover:border-cyan-500/30 hover:bg-zinc-900/60 transition-all duration-300 group/pend">
+                <Trophy className="mx-auto text-cyan-500/50 group-hover/pend:text-cyan-400 transition-colors mb-2 group-hover/pend:-translate-y-1 duration-300" size={20} />
+                <p className="text-lg sm:text-2xl font-bold text-white">{pendentesObjetivos}</p>
+                <p className="text-[10px] sm:text-xs text-zinc-500 mt-0.5 truncate">Objetivos</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* FORM */}
-      <div className="bg-zinc-900 rounded-xl p-4 flex gap-2 flex-col sm:flex-row">
-        <input
-          type="text"
-          placeholder="Nova missão..."
-          value={novaTarefa}
-          onChange={(e) => setNovaTarefa(e.target.value)}
-          className="flex-1 bg-zinc-800 px-4 py-2 text-white rounded"
-        />
+      {/* FORM E FILTROS */}
+      <div className="space-y-4 mt-8">
+        {/* ADD TASK FORM */}
+        <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-2 sm:p-3 flex gap-2 flex-col sm:flex-row shadow-lg focus-within:border-cyan-500/40 focus-within:ring-1 focus-within:ring-cyan-500/40 transition-all duration-300 group">
+          <input
+            type="text"
+            placeholder="Nova missão..."
+            value={novaTarefa}
+            onChange={(e) => setNovaTarefa(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && adicionarTarefa()}
+            className="flex-1 bg-zinc-950/50 px-4 py-3 text-white rounded-lg focus:outline-none placeholder:text-zinc-600 transition-colors"
+          />
 
-        <select
-          className="bg-zinc-800 px-3 py-2 text-zinc-100"
-          value={tipoTarefa}
-          onChange={(e) => setTipoTarefa(e.target.value)}
-        >
-          <option value="diaria">Diária (+{xpPorTIpo.diaria} XP)</option>
-          <option value="semanal">Semanal (+{xpPorTIpo.semanal} XP)</option>
-          <option value="objetivo">Objetivo (+{xpPorTIpo.objetivo} XP)</option>
-        </select>
+          <div className="flex gap-2">
+            <select
+              className="flex-1 sm:flex-none bg-zinc-950/50 border-r border-zinc-800 sm:border-none px-4 py-3 text-zinc-300 rounded-lg sm:rounded cursor-pointer focus:outline-none shrink-0 transition-colors hover:text-white"
+              value={tipoTarefa}
+              onChange={(e) => setTipoTarefa(e.target.value)}
+            >
+              <option value="diaria">Diária (+{xpPorTIpo.diaria} XP)</option>
+              <option value="semanal">Semanal (+{xpPorTIpo.semanal} XP)</option>
+              <option value="objetivo">Objetivo (+{xpPorTIpo.objetivo} XP)</option>
+            </select>
 
-        <button
-          className="bg-cyan-500 hover:bg-cyan-600 transition rounded px-3 py-2 flex items-center justify-center"
-          onClick={adicionarTarefa}
-        >
-          <Plus />
-        </button>
-      </div>
+            <button
+              className="bg-cyan-500 hover:bg-cyan-400 text-zinc-950 font-bold px-6 py-3 rounded-lg flex items-center justify-center gap-2 transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] shrink-0"
+              onClick={adicionarTarefa}
+            >
+              <Plus size={20} strokeWidth={3} />
+              <span className="hidden sm:inline">Adicionar</span>
+            </button>
+          </div>
+        </div>
 
-      {/* FILTROS */}
-      <div className="mt-2 flex flex-wrap gap-3">
-        <button
-          className="bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1"
-          onClick={() => setFiltro("todos")}
-        >
-          <Target size={14} /> Todos
-        </button>
+        {/* CONTROLES (FILTROS E ABAS) */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-900/50 p-2 rounded-xl border border-zinc-800/50">
+          
+          {/* Toggles de Categoria */}
+          <div className="flex overflow-x-auto gap-1 pb-1 md:pb-0 scrollbar-none">
+            {[
+              { id: 'todos', label: 'Todos', icon: Target },
+              { id: 'diaria', label: 'Diárias', icon: Calendar },
+              { id: 'semanal', label: 'Semanais', icon: Calendar },
+              { id: 'objetivo', label: 'Objetivos', icon: Trophy }
+            ].map((f) => (
+              <button
+                key={f.id}
+                className={`transition-all duration-300 flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap ${
+                  filtro === f.id
+                    ? "bg-zinc-800 text-white shadow-md shadow-black/20"
+                    : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/80"
+                }`}
+                onClick={() => setFiltro(f.id)}
+              >
+                <f.icon size={16} className={filtro === f.id ? "text-cyan-400" : "opacity-70"} />
+                {f.label}
+              </button>
+            ))}
+          </div>
 
-        <button
-          className="bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1"
-          onClick={() => setFiltro("diaria")}
-        >
-          <Calendar size={14} /> Diárias
-        </button>
+          <div className="w-px h-6 bg-zinc-800 hidden md:block"></div>
 
-        <button
-          className="bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1"
-          onClick={() => setFiltro("semanal")}
-        >
-          <Calendar size={14} /> Semanais
-        </button>
+          {/* Sistema e Lixeira */}
+          <div className="flex gap-1 shrink-0">
+            <button
+              className={`transition-all duration-300 flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg ${
+                filtro === "arquivadas"
+                  ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/20"
+                  : "text-zinc-500 hover:text-yellow-500/80 hover:bg-yellow-500/5"
+              }`}
+              onClick={() => setFiltro("arquivadas")}
+            >
+              <Archive size={16} /> Lixeira
+            </button>
 
-        <button
-          className="bg-zinc-800 hover:bg-zinc-700 transition flex rounded gap-1 text-white items-center px-3 py-1"
-          onClick={() => setFiltro("objetivo")}
-        >
-          <Trophy size={14} /> Objetivos
-        </button>
-      </div>
-
-      {/* ABAS: Lixeira e Histórico */}
-      <div className="flex gap-3">
-        <button
-          className={`transition flex rounded gap-1 items-center px-3 py-1 ${
-            filtro === "arquivadas"
-              ? "bg-cyan-500 text-black font-semibold"
-              : "bg-zinc-800 text-white hover:bg-zinc-700"
-          }`}
-          onClick={() => setFiltro("arquivadas")}
-        >
-          <Archive size={14} /> Lixeira
-        </button>
-
-        <button
-          className={`transition flex rounded gap-1 items-center px-3 py-1 ${
-            filtro === "historico"
-              ? "bg-cyan-500 text-black font-semibold"
-              : "bg-zinc-800 text-cyan-400 hover:bg-zinc-700"
-          }`}
-          onClick={() => setFiltro("historico")}
-        >
-          <History size={14} /> Histórico
-        </button>
+            <button
+              className={`transition-all duration-300 flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg ${
+                filtro === "historico"
+                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  : "text-zinc-500 hover:text-cyan-400/80 hover:bg-cyan-500/5"
+              }`}
+              onClick={() => setFiltro("historico")}
+            >
+              <History size={16} /> Histórico
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Modal de confirmação */}
@@ -889,10 +939,18 @@ const renderHistorico = () => {
       )}
 
       {/* TASKS OU HISTÓRICO */}
-      <div className="space-y-3">
+      <div className="space-y-3 mt-6">
         {filtro === "historico" ? (
           renderHistorico()
         ) : (
+          <div className="flex flex-col gap-3">
+          {tarefaFiltrada.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-zinc-600 bg-zinc-900/30 rounded-2xl border border-zinc-800/50 border-dashed">
+              <Target size={48} strokeWidth={1} className="opacity-50" />
+              <p className="text-base font-medium">Nenhuma missão encontrada.</p>
+              <p className="text-sm">Adicione uma nova ou mude o filtro para ver mais.</p>
+            </div>
+          ) : (
           tarefaFiltrada.map((item) => {
             const hoje = new Date().toISOString().split("T")[0];
 
@@ -929,114 +987,134 @@ const renderHistorico = () => {
             return (
               <div
                 key={item.id}
-                className={`flex justify-between py-3 px-3 items-center rounded-xl border ${
+                className={`group flex items-center justify-between p-4 sm:px-5 sm:py-4 rounded-xl border transition-all duration-300 ${
                   arquivada
-                    ? "bg-gray-700/40 border-gray-500 opacity-70"
+                    ? "bg-zinc-900/90 border-zinc-700 border-dashed opacity-100 shadow-none text-zinc-300 hover:bg-zinc-800"
                     : perdeuOntem || tarefaExpirada
-                    ? "bg-red-900/30 border-red-500/30"
+                    ? "bg-red-950/10 border-red-900/30 hover:border-red-500/40 hover:bg-red-950/20"
                     : jaFeitaHoje
-                    ? "bg-green-900/30 border-green-500/30"
-                    : "bg-zinc-900 border-zinc-800"
+                    ? "bg-green-950/10 border-green-900/30 hover:border-green-500/40 hover:shadow-[0_0_15px_rgba(34,197,94,0.05)] text-zinc-400"
+                    : "bg-zinc-900/80 border-zinc-800/80 hover:border-cyan-500/40 hover:bg-zinc-900 hover:-translate-y-1 hover:shadow-xl hover:shadow-cyan-500/5 cursor-pointer"
                 }`}
+                onClick={() => {
+                  if (!bloqueada && !arquivada) completarTarefa(item.id);
+                }}
               >
-                {/* LADO ESQUERDO */}
-                <div className="flex items-center gap-3">
+                {/* LADO ESQUERDO: Check e Título */}
+                <div className="flex items-center gap-4 flex-1 min-w-0">
                   <button
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (bloqueada || arquivada) return;
                       completarTarefa(item.id);
                     }}
                     disabled={bloqueada || arquivada}
-                    className={`w-8 h-8 border rounded-full flex items-center justify-center ${
+                    className={`shrink-0 w-8 h-8 sm:w-9 sm:h-9 border-2 rounded-full flex items-center justify-center transition-all duration-300 outline-none ${
                       bloqueada || arquivada
-                        ? "opacity-50 cursor-not-allowed border-gray-500"
-                        : "border-zinc-600"
+                        ? "opacity-40 cursor-not-allowed border-zinc-700 bg-zinc-900"
+                        : jaFeitaHoje
+                        ? "border-green-500 bg-green-500/20 text-green-400 scale-105 shadow-[0_0_10px_rgba(34,197,94,0.3)]"
+                        : "border-zinc-500 bg-zinc-950 group-hover:border-cyan-400 group-hover:bg-cyan-950/30 text-transparent hover:scale-110 active:scale-90"
                     }`}
                   >
-                    {jaFeitaHoje ? (
-                      <CheckCircle2 size={18} className="text-green-400" />
-                    ) : (
-                      <div className="w-3 h-3 bg-zinc-500 rounded-full" />
-                    )}
+                    <CheckCircle2 size={20} className={jaFeitaHoje ? "opacity-100" : "opacity-0 group-hover:opacity-40 text-cyan-400 transition-opacity"} strokeWidth={3} />
                   </button>
 
-                  <div className="flex flex-col">
-                    <p className={`font-medium ${
+                  <div className="flex flex-col min-w-0">
+                    <p className={`font-semibold text-base sm:text-lg truncate transition-colors duration-300 ${
                       arquivada
-                        ? "line-through text-gray-400"
+                        ? "line-through text-zinc-400 opacity-80"
                         : jaFeitaHoje
-                        ? "line-through text-zinc-400"
-                        : ""
+                        ? "line-through text-zinc-500"
+                        : "text-zinc-100 group-hover:text-cyan-50"
                     }`}>
                       {item.title}
                     </p>
 
-                    {arquivada && (
-                      <span className="text-xs bg-gray-600 text-gray-200 px-2 py-1 rounded w-fit mt-1 flex items-center gap-1">
-                        <Archive size={12} className="text-gray-300" />
-                        Arquivada
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <span className={`text-[10px] sm:text-xs px-2 py-0.5 rounded font-bold uppercase tracking-wider border bg-zinc-800/50 text-cyan-400 border-zinc-700/50 ${
+                        arquivada || jaFeitaHoje ? 'opacity-50' : ''
+                      }`}>
+                         {item.type}
                       </span>
-                    )}
 
-                    <p className="text-xs text-yellow-400">Missão: {item.type}</p>
+                      {arquivada && (
+                        <span className="text-[10px] sm:text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded font-medium flex items-center gap-1 border border-zinc-700">
+                          <Archive size={10} /> Arquivada
+                        </span>
+                      )}
 
-                    {/* DIÁRIA */}
-                    {item.type === "diaria" && (
-                      <>
-                        {perdeuOntem && !arquivada && (
-                          <p className="text-xs text-red-400">❌ Falhou ontem</p>
-                        )}
-                        {!arquivada && (
-                          <p className="text-xs text-zinc-400 mt-1">⏳ Termina em: {horas}h {minutos}m</p>
-                        )}
-                      </>
-                    )}
-
-                    {/* SEMANAL */}
-                    {item.type === "semanal" && !arquivada && (
-                      tarefaExpirada
-                        ? <p className="text-xs text-red-400">❌ Expirada</p>
-                        : <p className="text-xs text-zinc-400">⏳ {diasRestantes} dias restantes</p>
-                    )}
-
-                    {/* OBJETIVO */}
-                    {item.type === "objetivo" && !arquivada && (
-                      <p className="text-xs text-zinc-400">Objetivo livre (sem prazo)</p>
-                    )}
+                      {!arquivada && (
+                        <>
+                          {item.type === "diaria" && perdeuOntem && (
+                            <span className="text-[10px] sm:text-xs text-red-400 flex items-center gap-1 font-medium bg-red-950/30 px-2 py-0.5 rounded border border-red-900/50">
+                              <XCircle size={12}/> Falhou ontem
+                            </span>
+                          )}
+                          {item.type === "diaria" && !perdeuOntem && !jaFeitaHoje && (
+                            <span className="text-[10px] sm:text-xs text-zinc-500 font-medium flex items-center gap-1">
+                              <Calendar size={12}/> {horas}h {minutos}m restantes
+                            </span>
+                          )}
+                          
+                          {item.type === "semanal" && (
+                            tarefaExpirada
+                              ? <span className="text-[10px] sm:text-xs text-red-400 flex items-center gap-1 font-medium bg-red-950/30 px-2 py-0.5 rounded border border-red-900/50">
+                                  <XCircle size={12}/> Expirada
+                                </span>
+                              : !jaFeitaHoje && <span className="text-[10px] sm:text-xs text-zinc-500 font-medium flex items-center gap-1">
+                                  <Calendar size={12}/> {diasRestantes} dias restantes
+                                </span>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* LADO DIREITO */}
-                <div className="flex items-center gap-4">
-                  <span className={`font-bold ${arquivada ? "text-gray-400" : "text-yellow-400"}`}>
-                    +{item.xp}
+                {/* LADO DIREITO: XP e Ações */}
+                <div className="flex items-center gap-3 sm:gap-6 ml-4 shrink-0" onClick={(e) => e.stopPropagation()}>
+                  <span className={`font-black text-base sm:text-xl transition-all duration-300 ${
+                    arquivada ? "text-zinc-600" 
+                    : jaFeitaHoje ? "text-yellow-600"
+                    : "text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.2)] group-hover:scale-110 group-hover:drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]"
+                  }`}>
+                    +{item.xp} <span className="text-xs opacity-70 font-bold">XP</span>
                   </span>
 
-                  <button onClick={() => solicitarAcaoModal(item.id, 'remover')}>
-                    <Trash2 size={18} />
-                  </button>
-
-                  {arquivada ? (
-                    <button
-                      onClick={() => solicitarAcaoModal(item.id, 'restaurar')}
-                      className="text-green-400 hover:text-green-300 transition"
-                      title="Restaurar tarefa"
+                  <div className="flex gap-1 sm:gap-2 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-300">
+                    {arquivada ? (
+                      <button
+                        onClick={() => solicitarAcaoModal(item.id, 'restaurar')}
+                        className="p-2 sm:p-2.5 text-zinc-500 hover:text-green-400 hover:bg-green-500/10 rounded-lg transition-colors"
+                        title="Restaurar tarefa"
+                      >
+                        <History size={18} />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => solicitarAcaoModal(item.id, 'limpar')}
+                        className="p-2 sm:p-2.5 text-zinc-500 hover:text-yellow-400 hover:bg-yellow-500/10 rounded-lg transition-colors"
+                        title="Arquivar tarefa"
+                      >
+                        <Archive size={18} />
+                      </button>
+                    )}
+                    
+                    <button 
+                      onClick={() => solicitarAcaoModal(item.id, 'remover')}
+                      className="p-2 sm:p-2.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      title="Apagar permanentemente"
                     >
-                      <Archive size={18} />
+                      <Trash2 size={18} />
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => solicitarAcaoModal(item.id, 'limpar')}
-                      className="text-zinc-400 hover:text-white transition"
-                      title="Arquivar tarefa"
-                    >
-                      <Archive size={18} />
-                    </button>
-                  )}
+                  </div>
                 </div>
               </div>
             );
           })
+          )}
+          </div>
         )}
       </div>
     </div>
